@@ -8,7 +8,7 @@ class ProductsScreen extends StatefulWidget {
 }
 
 class _ProductsScreenState extends State<ProductsScreen> {
-  // Categories from your outline
+  // Your 9 categories
   final List<String> categories = [
     'Aloe Vera', 'Coconut Water', 'Energy Drink', 'Flavoured Milk',
     'Fruit Juice', 'Iced Tea', 'Mineral Water', 'Soft Drink', 'Water',
@@ -16,17 +16,19 @@ class _ProductsScreenState extends State<ProductsScreen> {
 
   String selectedCategory = 'Aloe Vera';  // Default
 
-  // Placeholder products per category (sync with backend JSON)
+  // Products per category with your uploaded images
   Map<String, List<Map<String, dynamic>>> productsByCategory = {
     'Aloe Vera': [
-      {'name': 'Aloe Vera Mango', 'price': 3.50, 'image': null},
-      {'name': 'Aloe Vera Peach', 'price': 3.00, 'image': null},
+      {'name': 'Aloe Vera Lychee', 'price': 3.25, 'image': 'assets/images/aloe_lychee.png'},
+      {'name': 'Aloe Vera Mango', 'price': 3.50, 'image': 'assets/images/aloe_mango.png'},
+      {'name': 'Aloe Vera Original', 'price': 2.75, 'image': 'assets/images/aloe_original.png'},
+      {'name': 'Aloe Vera Peach', 'price': 3.00, 'image': 'assets/images/aloe_peach.png'},
+      {'name': 'Aloe Vera Watermelon', 'price': 3.25, 'image': 'assets/images/aloe_watermelon.png'},
     ],
     'Coconut Water': [
-      {'name': 'Coconut Water Original', 'price': 2.50, 'image': null},
-      {'name': 'Coconut Water Mango', 'price': 3.00, 'image': null},
+      {'name': 'Coconut Water Original', 'price': 2.50, 'image': 'assets/images/coconut_original.png'},
+      {'name': 'Coconut Water Mango', 'price': 3.00, 'image': null},  // Add image later
     ],
-    // Add placeholders for other categories...
     'Energy Drink': [
       {'name': 'Energy Boost', 'price': 4.00, 'image': null},
     ],
@@ -55,30 +57,37 @@ class _ProductsScreenState extends State<ProductsScreen> {
     final categoryProducts = productsByCategory[selectedCategory] ?? [];
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Products')),
+      appBar: AppBar(
+        title: const Text('Products'),
+        backgroundColor: const Color(0xFF32CD32),  // Lime green
+      ),
       body: Column(
         children: [
-          // Categories grid
-          SizedBox(
-            height: 60,
-            child: ListView.builder(
-              scrollDirection: Axis.horizontal,
-              itemCount: categories.length,
-              itemBuilder: (context, index) {
-                final category = categories[index];
-                return Padding(
-                  padding: const EdgeInsets.all(4.0),
-                  child: ElevatedButton(
-                    onPressed: () => setState(() {
-                      selectedCategory = category;
-                    }),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: selectedCategory == category ? const Color(0xFF32CD32) : Colors.grey,
-                      foregroundColor: Colors.black,
-                    ),
-                    child: Text(category),
-                  ),
+          // Dropdown for categories
+          Padding(
+            padding: const EdgeInsets.all(16.0),
+            child: DropdownButton<String>(
+              value: selectedCategory,
+              isExpanded: true,  // Full width
+              hint: const Text('Select Category'),  // Shown if no value
+              style: const TextStyle(color: Colors.black),  // Black text
+              dropdownColor: Colors.white,  // White background for dropdown
+              underline: Container(
+                height: 2,
+                color: const Color(0xFF32CD32),  // Lime underline
+              ),
+              items: categories.map((String category) {
+                return DropdownMenuItem<String>(
+                  value: category,
+                  child: Text(category),
                 );
+              }).toList(),
+              onChanged: (String? newValue) {
+                if (newValue != null) {
+                  setState(() {
+                    selectedCategory = newValue;
+                  });
+                }
               },
             ),
           ),
@@ -91,7 +100,14 @@ class _ProductsScreenState extends State<ProductsScreen> {
                 return Card(
                   margin: const EdgeInsets.all(8.0),
                   child: ListTile(
-                    leading: CircleAvatar(child: Text(product['name'][0])),
+                    leading: product['image'] != null
+                        ? Image.asset(
+                            product['image'],
+                            width: 60,
+                            height: 60,
+                            fit: BoxFit.contain,  // Full image without cropping
+                          )
+                        : CircleAvatar(child: Text(product['name'][0])),
                     title: Text(product['name']),
                     subtitle: Text('\$${product['price']}'),
                     trailing: ElevatedButton(

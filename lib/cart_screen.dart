@@ -1,4 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'package:mailer/mailer.dart';
+import 'package:mailer/smtp_server.dart';
 import 'dart:convert';
 
 class CartScreen extends StatefulWidget {
@@ -9,30 +12,71 @@ class CartScreen extends StatefulWidget {
 }
 
 class _CartScreenState extends State<CartScreen> {
-  // Placeholder cart (use shared_preferences for persistence)
-  List<Map<String, dynamic>> cartItems = [
-    {'name': 'Coconut Water Original', 'price': 2.50, 'quantity': 1},
-    {'name': 'Aloe Vera Mango', 'price': 3.50, 'quantity': 2},
-  ];
+  List<Map<String, dynamic>> cartItems = [];  // Starts empty
+
+  @override
+  void initState() {
+    super.initState();
+    _loadCart();  // Load from storage on start
+  }
+
+  Future<void> _loadCart() async {
+    final prefs = await SharedPreferences.getInstance();
+    final cartList = prefs.getStringList('cart') ?? [];
+    setState(() {
+      cartItems = cartList.map((item) => Map<String, dynamic>.from(jsonDecode(item))).toList();
+    });
+  }
 
   double get subtotal => cartItems.fold(0, (sum, item) => sum + (item['price'] * item['quantity']));
 
-  void _checkout() {
-    // Generate JSON order
-    final orderJson = jsonEncode({
-      'order': {
-        'items': cartItems,
-        'total': subtotal,
-        'timestamp': DateTime.now().toIso8601String(),
-      },
-    });
-    print('Order JSON: $orderJson');  // Replace with email send
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Order sent via email with JSON attachment!')),
-    );
+  Future<void> _checkout() async {
+    if (cartItems.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Cart is empty! Add items first.')),
+      );
+      return;
+    }
+
+    // Format order as plain text for email body
+    String emailBody = 'Danfels Order Summary\n\n';
+    emailBody += 'Items:\n';
+    for (var item in cartItems) {
+      emailBody += '- ${item['name']} \$${item['price']} x ${item['quantity']} = \$${ (item['price'] * item['quantity']).toStringAsFixed(2) }\n';
+    }
+    emailBody += '\nTotal: \$${subtotal.toStringAsFixed(2)}\n';
+    emailBody += 'Timestamp: ${DateTime.now().toString()}';
+
+    // Send real email (replace placeholders with your Gmail sender and app password)
+    final smtpServer = gmail('steve.sheridan.ios@gmail.com', 'demromgqmodowbjt');  // e.g., 'steve.sheridan.ios@gmail.com', 'abcd efgh ijkl mnop'
+    final message = Message()
+      ..from = Address('your-gmail@gmail.com')  // Sender
+      ..recipients = [Address('steve.sheridan.ios@gmail.com')]  // Test recipient
+      ..subject = 'New Danfels Order - Total \$${subtotal.toStringAsFixed(2)}'
+      ..text = emailBody;  // Order details in body
+
+    try {
+      final sendReport = await send(message, smtpServer);
+      print('Email sent! Report: ${sendReport.toString()}');
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Order sent via email! Check your inbox.')),
+      );
+    } catch (e) {
+      print('Email failed: $e');
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Email send failed: $e - Check console.')),
+      );
+    }
+
     setState(() {
       cartItems.clear();  // Empty cart
     });
+    await _clearCartStorage();  // Clear local storage
+  }
+
+  Future<void> _clearCartStorage() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.remove('cart');
   }
 
   @override
@@ -63,6 +107,7 @@ class _CartScreenState extends State<CartScreen> {
                                   cartItems.removeAt(index);
                                 }
                               });
+                              _saveCart();  // Update storage
                             },
                           ),
                         ),
@@ -90,5 +135,11 @@ class _CartScreenState extends State<CartScreen> {
               ],
             ),
     );
+  }
+
+  Future<void> _saveCart() async {
+    final prefs = await SharedPreferences.getInstance();
+    final cartList = cartItems.map((item) => jsonEncode(item)).toList();
+    await prefs.setStringList('cart', cartList);
   }
 }

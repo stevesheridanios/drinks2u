@@ -55,14 +55,15 @@ class _ProductsScreenState extends State<ProductsScreen> {
   };
 
   Future<void> _addToCart(Map<String, dynamic> product) async {
+    print('Add button pressed for ${product['name']}');  // Debug: Confirms tap
     try {
       final prefs = await SharedPreferences.getInstance();
       List<String> cartList = prefs.getStringList('cart') ?? [];
-      print('Current cart length before add: ${cartList.length}');  // Debug
+      print('Cart loaded: ${cartList.length} items');  // Debug: Before add
 
       Map<String, dynamic> cartItem = {
         'name': product['name'],
-        'price': product['price'].toDouble(),  // Ensure double
+        'price': product['price'].toDouble(),
         'quantity': 1,
       };
 
@@ -74,7 +75,7 @@ class _ProductsScreenState extends State<ProductsScreen> {
           existing['quantity'] = (existing['quantity'] as int) + 1;
           cartList[i] = jsonEncode(existing);
           found = true;
-          print('Updated existing item: ${product['name']} to quantity ${existing['quantity']}');  // Debug
+          print('Updated quantity for ${product['name']} to ${existing['quantity']}');  // Debug
           break;
         }
       }
@@ -83,13 +84,14 @@ class _ProductsScreenState extends State<ProductsScreen> {
         print('Added new item: ${product['name']}');  // Debug
       }
       await prefs.setStringList('cart', cartList);
+      await prefs.reload();  // Force flush on Android
       print('Cart saved, total items: ${cartList.length}');  // Debug
 
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('${product['name']} added to cart!')),
       );
     } catch (e) {
-      print('Add to cart error: $e');
+      print('Add to cart error: $e');  // Debug
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('Add failed: $e')),
       );

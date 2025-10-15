@@ -10,27 +10,27 @@ class MyApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'Danfels',
+      title: 'Drinks2U',
       theme: ThemeData(
-        colorScheme: ColorScheme.fromSeed(seedColor: Colors.blue), // Update colors per your outline
+        colorScheme: ColorScheme.fromSeed(seedColor: Colors.blue),
         useMaterial3: true,
       ),
-      home: const DanfelsHomePage(title: 'Danfels - Browse Products'),
+      home: const DrinksHomePage(title: 'Drinks2U - Browse Products'),
     );
   }
 }
 
-class DanfelsHomePage extends StatefulWidget {
-  const DanfelsHomePage({super.key, required this.title});
+class DrinksHomePage extends StatefulWidget {
+  const DrinksHomePage({super.key, required this.title});
 
   final String title;
 
   @override
-  State<DanfelsHomePage> createState() => _DanfelsHomePageState();
+  State<DrinksHomePage> createState() => _DrinksHomePageState();
 }
 
-class _DanfelsHomePageState extends State<DanfelsHomePage> {
-  // Simple list of drinks (update per your functions/outline)
+class _DrinksHomePageState extends State<DrinksHomePage> {
+  // Simple list of drinks (name, price, image optional)
   final List<Map<String, dynamic>> _drinks = [
     {'name': 'Coca-Cola', 'price': 2.50, 'image': null},
     {'name': 'Pepsi', 'price': 2.00, 'image': null},
@@ -39,12 +39,13 @@ class _DanfelsHomePageState extends State<DanfelsHomePage> {
     {'name': 'Iced Tea', 'price': 2.75, 'image': null},
   ];
 
-  int _cartCount = 0;
+  int _cartCount = 0; // Simple cart counter
 
   void _addToCart(Map<String, dynamic> drink) {
     setState(() {
       _cartCount++;
     });
+    // TODO: Add to real cart logic (e.g., update a cart list)
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text('${drink['name']} added to cart! \$${drink['price']}'),
@@ -86,7 +87,7 @@ class _DanfelsHomePageState extends State<DanfelsHomePage> {
             margin: const EdgeInsets.all(8.0),
             child: ListTile(
               leading: CircleAvatar(
-                child: Text(drink['name'][0]), // Placeholder for logo/image
+                child: Text(drink['name'][0]), // Initial as placeholder for image
               ),
               title: Text(drink['name']),
               subtitle: Text('\$${drink['price']}'),
@@ -100,6 +101,7 @@ class _DanfelsHomePageState extends State<DanfelsHomePage> {
       ),
       floatingActionButton: FloatingActionButton(
         onPressed: () {
+          // TODO: Navigate to cart screen
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(content: Text('View Cart - Coming Soon!')),
           );

@@ -1,0 +1,114 @@
+[
+  {
+    "id": 1,
+    "name": "Aloe Vera Lychee",
+    "category": "Aloe Vera",
+    "price": 3.25,
+    "image": "assets/images/aloe_lychee.png",
+    "description": "Aloe Vera Lychee - Refreshing aloe with lychee flavor."
+  },
+  {
+    "id": 2,
+    "name": "Aloe Vera Mango",
+    "category": "Aloe Vera",
+    "price": 3.50,
+    "image": "assets/images/aloe_mango.png",
+    "description": "Aloe Vera Mango - Tropical aloe vera and mango blend."
+  },
+  {
+    "id": 3,
+    "name": "Aloe Vera Original",
+    "category": "Aloe Vera",
+    "price": 2.75,
+    "image": "assets/images/aloe_original.png",
+    "description": "Aloe Vera Original - Pure aloe vera goodness."
+  },
+  {
+    "id": 4,
+    "name": "Aloe Vera Peach",
+    "category": "Aloe Vera",
+    "price": 3.00,
+    "image": "assets/images/aloe_peach.png",
+    "description": "Aloe Vera Peach - Sweet peach-infused aloe."
+  },
+  {
+    "id": 5,
+    "name": "Aloe Vera Watermelon",
+    "category": "Aloe Vera",
+    "price": 3.25,
+    "image": "assets/images/aloe_watermelon.png",
+    "description": "Aloe Vera Watermelon - Hydrating watermelon aloe mix."
+  },
+  {
+    "id": 6,
+    "name": "Coconut Water Original",
+    "category": "Coconut Water",
+    "price": 2.50,
+    "image": "assets/images/coconut_original.png",
+    "description": "Coconut Water Original - Fresh coconut hydration."
+  },
+  {
+    "id": 7,
+    "name": "Coconut Water Mango",
+    "category": "Coconut Water",
+    "price": 3.00,
+    "image": null,
+    "description": "Coconut Water Mango - Mango-flavored coconut water."
+  },
+  {
+    "id": 8,
+    "name": "Energy Boost",
+    "category": "Energy Drink",
+    "price": 4.00,
+    "image": null,
+    "description": "Energy Boost - High-energy drink for the day."
+  },
+  {
+    "id": 9,
+    "name": "Chocolate Milk",
+    "category": "Flavoured Milk",
+    "price": 2.00,
+    "image": null,
+    "description": "Chocolate Milk - Creamy chocolate indulgence."
+  },
+  {
+    "id": 10,
+    "name": "Orange Juice",
+    "category": "Fruit Juice",
+    "price": 2.75,
+    "image": null,
+    "description": "Orange Juice - Fresh-squeezed orange refreshment."
+  },
+  {
+    "id": 11,
+    "name": "Lemon Iced Tea",
+    "category": "Iced Tea",
+    "price": 2.25,
+    "image": null,
+    "description": "Lemon Iced Tea - Chilled lemon tea delight."
+  },
+  {
+    "id": 12,
+    "name": "Sparkling Water",
+    "category": "Mineral Water",
+    "price": 1.50,
+    "image": null,
+    "description": "Sparkling Water - Bubbly mineral refreshment."
+  },
+  {
+    "id": 13,
+    "name": "Cola",
+    "category": "Soft Drink",
+    "price": 2.00,
+    "image": null,
+    "description": "Cola - Classic fizzy cola taste."
+  },
+  {
+    "id": 14,
+    "name": "Pure Water",
+    "category": "Water",
+    "price": 1.00,
+    "image": null,
+    "description": "Pure Water - Clean and pure hydration."
+  }
+]

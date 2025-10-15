@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
-import 'package:shared_preferences/shared_preferences.dart';
+import 'package:flutter/services.dart' show rootBundle;
 import 'dart:convert';
+import '../models/product.dart';
+import '../cart_manager.dart';
 
 class ProductsScreen extends StatefulWidget {
   const ProductsScreen({super.key});
@@ -10,15 +12,113 @@ class ProductsScreen extends StatefulWidget {
 }
 
 class _ProductsScreenState extends State<ProductsScreen> {
-  // Your 9 categories
-  final List<String> categories = [
-    'Aloe Vera', 'Coconut Water', 'Energy Drink', 'Flavoured Milk',
-    'Fruit Juice', 'Iced Tea', 'Mineral Water', 'Soft Drink', 'Water',
+  List<Product> allProducts = [];
+  List<Product> filteredProducts = [];
+  String selectedCategory = 'All';  // Default to show all
+  bool isLoading = true;  // Track loading state explicitly
+
+  // Your 9 categories + 'All' for filtering (matched to hardcoded keys)
+  List<String> categories = [
+    'All',
+    'Aloe Vera',
+    'Coconut Water',
+    'Energy Drink',
+    'Flavoured Milk',
+    'Fruit Juice',
+    'Iced Tea',
+    'Mineral Water',
+    'Soft Drink',
+    'Water',
   ];
 
-  String selectedCategory = 'Aloe Vera';  // Default
+  @override
+  void initState() {
+    super.initState();
+    loadProducts();
+  }
 
-  // Products per category with your uploaded images
+  Future<void> loadProducts() async {
+    print('Starting to load products from JSON...');  // Debug: Start of load
+    try {
+      final String response = await rootBundle.loadString('assets/data/products.json');
+      print('JSON response length: ${response.length}');  // Debug: Raw JSON size
+      final List<dynamic> data = json.decode(response);
+      print('Parsed ${data.length} items from JSON');  // Debug: Parsed count
+      if (mounted) {
+        setState(() {
+          allProducts = data.map((json) => Product.fromJson(json)).toList();
+          filteredProducts = allProducts;  // Start with all
+          isLoading = false;
+          print('SetState: Loaded ${allProducts.length} products from JSON');  // Debug: Post-setState
+        });
+      }
+    } catch (e) {
+      print('JSON load failed: $e');  // Debug: Exact error
+      _loadHardcodedProducts();  // Fallback
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error loading products from JSON: $e. Using fallback.')),
+        );
+      }
+    }
+  }
+
+  void _loadHardcodedProducts() {
+    print('Loading fallback hardcoded products...');  // Debug: Fallback start
+    // Temporary fallback: Convert your hardcoded map to Product list
+    List<Product> fallback = [];
+    productsByCategory.forEach((category, items) {
+      for (var item in items) {
+        fallback.add(Product(
+          id: fallback.length + 1,  // Simple incremental ID
+          name: item['name'],
+          category: category,
+          price: item['price'],
+          image: item['image'] as String?,  // Explicit nullable cast
+          description: '${item['name']} - A refreshing drink.',  // Placeholder
+        ));
+      }
+    });
+    if (mounted) {
+      setState(() {
+        allProducts = fallback;
+        filteredProducts = allProducts;
+        isLoading = false;
+        print('Fallback: Loaded ${allProducts.length} products from hardcoded');  // Debug: Post-setState
+      });
+    }
+  }
+
+  void filterProducts(String category) {
+    setState(() {
+      selectedCategory = category;
+      if (category == 'All') {
+        filteredProducts = allProducts;
+      } else {
+        filteredProducts = allProducts.where((p) => p.category == category).toList();
+      }
+      print('Filtered to ${filteredProducts.length} products for $category');  // Debug: Filter result
+    });
+  }
+
+  Future<void> _addToCart(Product product) async {
+    try {
+      await CartManager.addToCart(product);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('${product.name} added to cart!')),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Add failed: $e')),
+        );
+      }
+    }
+  }
+
+  // Keep your hardcoded map here temporarily for fallback
   Map<String, List<Map<String, dynamic>>> productsByCategory = {
     'Aloe Vera': [
       {'name': 'Aloe Vera Lychee', 'price': 3.25, 'image': 'assets/images/aloe_lychee.png'},
@@ -54,54 +154,8 @@ class _ProductsScreenState extends State<ProductsScreen> {
     ],
   };
 
-  Future<void> _addToCart(Map<String, dynamic> product) async {
-    print('Add button pressed for ${product['name']}');  // Debug: Confirms tap
-    try {
-      final prefs = await SharedPreferences.getInstance();
-      List<String> cartList = prefs.getStringList('cart') ?? [];
-      print('Cart loaded: ${cartList.length} items');  // Debug: Before add
-
-      Map<String, dynamic> cartItem = {
-        'name': product['name'],
-        'price': product['price'].toDouble(),
-        'quantity': 1,
-      };
-
-      // Check if item exists, update quantity
-      bool found = false;
-      for (int i = 0; i < cartList.length; i++) {
-        Map<String, dynamic> existing = jsonDecode(cartList[i]);
-        if (existing['name'] == product['name']) {
-          existing['quantity'] = (existing['quantity'] as int) + 1;
-          cartList[i] = jsonEncode(existing);
-          found = true;
-          print('Updated quantity for ${product['name']} to ${existing['quantity']}');  // Debug
-          break;
-        }
-      }
-      if (!found) {
-        cartList.add(jsonEncode(cartItem));
-        print('Added new item: ${product['name']}');  // Debug
-      }
-      await prefs.setStringList('cart', cartList);
-      await prefs.reload();  // Force flush on Android
-      print('Cart saved, total items: ${cartList.length}');  // Debug
-
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('${product['name']} added to cart!')),
-      );
-    } catch (e) {
-      print('Add to cart error: $e');  // Debug
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Add failed: $e')),
-      );
-    }
-  }
-
   @override
   Widget build(BuildContext context) {
-    final categoryProducts = productsByCategory[selectedCategory] ?? [];
-
     return Scaffold(
       appBar: AppBar(
         title: const Text('Products'),
@@ -130,40 +184,46 @@ class _ProductsScreenState extends State<ProductsScreen> {
               }).toList(),
               onChanged: (String? newValue) {
                 if (newValue != null) {
-                  setState(() {
-                    selectedCategory = newValue;
-                  });
+                  filterProducts(newValue);
                 }
               },
             ),
           ),
           // Products list for selected category
           Expanded(
-            child: ListView.builder(
-              itemCount: categoryProducts.length,
-              itemBuilder: (context, index) {
-                final product = categoryProducts[index];
-                return Card(
-                  margin: const EdgeInsets.all(8.0),
-                  child: ListTile(
-                    leading: product['image'] != null
-                        ? Image.asset(
-                            product['image'],
-                            width: 60,
-                            height: 60,
-                            fit: BoxFit.contain,
-                          )
-                        : CircleAvatar(child: Text(product['name'][0])),
-                    title: Text(product['name']),
-                    subtitle: Text('\$${product['price']}'),
-                    trailing: ElevatedButton(
-                      onPressed: () => _addToCart(product),
-                      child: const Icon(Icons.add_shopping_cart),
-                    ),
-                  ),
-                );
-              },
-            ),
+            child: isLoading || filteredProducts.isEmpty
+                ? const Center(child: CircularProgressIndicator())
+                : filteredProducts.isEmpty
+                    ? const Center(child: Text('No products found in this category.'))
+                    : ListView.builder(
+                        itemCount: filteredProducts.length,
+                        itemBuilder: (context, index) {
+                          final product = filteredProducts[index];
+                          return Card(
+                            margin: const EdgeInsets.all(8.0),
+                            child: ListTile(
+                              leading: (product.image?.isNotEmpty ?? false)
+                                  ? Image.asset(
+                                      product.image!,  // Safe after null check
+                                      width: 60,
+                                      height: 60,
+                                      fit: BoxFit.contain,
+                                      errorBuilder: (context, error, stackTrace) =>
+                                          const CircleAvatar(child: Icon(Icons.image_not_supported)),
+                                    )
+                                  : CircleAvatar(child: Text(product.name.isNotEmpty ? product.name[0].toUpperCase() : '?')),
+                              title: Text(product.name),
+                              subtitle: Text(
+                                '${product.description}\n\$${product.price.toStringAsFixed(2)}',
+                              ),
+                              trailing: ElevatedButton(
+                                onPressed: () => _addToCart(product),
+                                child: const Icon(Icons.add_shopping_cart),
+                              ),
+                            ),
+                          );
+                        },
+                      ),
           ),
         ],
       ),

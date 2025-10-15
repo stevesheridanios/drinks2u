@@ -1,112 +1,42 @@
 import 'package:flutter/material.dart';
+import 'home_screen.dart';  // Import the new HomeScreen file
 
 void main() {
-  runApp(const MyApp());
+  runApp(const DanfelsApp());
 }
 
-class MyApp extends StatelessWidget {
-  const MyApp({super.key});
+class DanfelsApp extends StatelessWidget {
+  const DanfelsApp({super.key});
 
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
       title: 'Danfels',
       theme: ThemeData(
-        colorScheme: ColorScheme.fromSeed(seedColor: Colors.blue), // Update colors per your outline
+        primarySwatch: Colors.lime,  // Lime green primary
+        colorScheme: const ColorScheme(
+          brightness: Brightness.light,
+          primary: Color(0xFF32CD32),  // Lime green
+          onPrimary: Colors.black,  // Black on lime
+          secondary: Colors.black,  // Black secondary
+          onSecondary: Colors.white,  // White on black
+          error: Colors.red,
+          onError: Colors.white,
+          surface: Colors.white,  // White background
+          onSurface: Colors.black,  // Black text
+          background: Colors.white,
+          onBackground: Colors.black,
+          outline: Colors.black26,
+          onInverseSurface: Colors.white,
+          inverseSurface: Colors.black,
+          shadow: Colors.black26,
+          surfaceVariant: Colors.grey,
+          outlineVariant: Colors.grey,
+          scrim: Colors.black26,
+        ),
         useMaterial3: true,
       ),
-      home: const DanfelsHomePage(title: 'Danfels - Browse Products'),
-    );
-  }
-}
-
-class DanfelsHomePage extends StatefulWidget {
-  const DanfelsHomePage({super.key, required this.title});
-
-  final String title;
-
-  @override
-  State<DanfelsHomePage> createState() => _DanfelsHomePageState();
-}
-
-class _DanfelsHomePageState extends State<DanfelsHomePage> {
-  // Simple list of drinks (update per your functions/outline)
-  final List<Map<String, dynamic>> _drinks = [
-    {'name': 'Coca-Cola', 'price': 2.50, 'image': null},
-    {'name': 'Pepsi', 'price': 2.00, 'image': null},
-    {'name': 'Bottled Water', 'price': 1.50, 'image': null},
-    {'name': 'Orange Juice', 'price': 3.00, 'image': null},
-    {'name': 'Iced Tea', 'price': 2.75, 'image': null},
-  ];
-
-  int _cartCount = 0;
-
-  void _addToCart(Map<String, dynamic> drink) {
-    setState(() {
-      _cartCount++;
-    });
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text('${drink['name']} added to cart! \$${drink['price']}'),
-        action: SnackBarAction(
-          label: 'Undo',
-          onPressed: () {
-            setState(() {
-              _cartCount--;
-            });
-          },
-        ),
-      ),
-    );
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        backgroundColor: Theme.of(context).colorScheme.inversePrimary,
-        title: Text(widget.title),
-        actions: [
-          Center(
-            child: Padding(
-              padding: const EdgeInsets.all(16.0),
-              child: Badge(
-                label: Text('$_cartCount'),
-                child: const Icon(Icons.shopping_cart),
-              ),
-            ),
-          ),
-        ],
-      ),
-      body: ListView.builder(
-        itemCount: _drinks.length,
-        itemBuilder: (context, index) {
-          final drink = _drinks[index];
-          return Card(
-            margin: const EdgeInsets.all(8.0),
-            child: ListTile(
-              leading: CircleAvatar(
-                child: Text(drink['name'][0]), // Placeholder for logo/image
-              ),
-              title: Text(drink['name']),
-              subtitle: Text('\$${drink['price']}'),
-              trailing: ElevatedButton(
-                onPressed: () => _addToCart(drink),
-                child: const Icon(Icons.add_shopping_cart),
-              ),
-            ),
-          );
-        },
-      ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: () {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('View Cart - Coming Soon!')),
-          );
-        },
-        tooltip: 'View Cart',
-        child: const Icon(Icons.shopping_cart),
-      ),
+      home: const HomeScreen(),
     );
   }
 }

@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'dart:convert';
 
 class ProductsScreen extends StatefulWidget {
   const ProductsScreen({super.key});
@@ -27,7 +29,7 @@ class _ProductsScreenState extends State<ProductsScreen> {
     ],
     'Coconut Water': [
       {'name': 'Coconut Water Original', 'price': 2.50, 'image': 'assets/images/coconut_original.png'},
-      {'name': 'Coconut Water Mango', 'price': 3.00, 'image': null},  // Add image later
+      {'name': 'Coconut Water Mango', 'price': 3.00, 'image': null},
     ],
     'Energy Drink': [
       {'name': 'Energy Boost', 'price': 4.00, 'image': null},
@@ -52,6 +54,48 @@ class _ProductsScreenState extends State<ProductsScreen> {
     ],
   };
 
+  Future<void> _addToCart(Map<String, dynamic> product) async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      List<String> cartList = prefs.getStringList('cart') ?? [];
+      print('Current cart length before add: ${cartList.length}');  // Debug
+
+      Map<String, dynamic> cartItem = {
+        'name': product['name'],
+        'price': product['price'].toDouble(),  // Ensure double
+        'quantity': 1,
+      };
+
+      // Check if item exists, update quantity
+      bool found = false;
+      for (int i = 0; i < cartList.length; i++) {
+        Map<String, dynamic> existing = jsonDecode(cartList[i]);
+        if (existing['name'] == product['name']) {
+          existing['quantity'] = (existing['quantity'] as int) + 1;
+          cartList[i] = jsonEncode(existing);
+          found = true;
+          print('Updated existing item: ${product['name']} to quantity ${existing['quantity']}');  // Debug
+          break;
+        }
+      }
+      if (!found) {
+        cartList.add(jsonEncode(cartItem));
+        print('Added new item: ${product['name']}');  // Debug
+      }
+      await prefs.setStringList('cart', cartList);
+      print('Cart saved, total items: ${cartList.length}');  // Debug
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('${product['name']} added to cart!')),
+      );
+    } catch (e) {
+      print('Add to cart error: $e');
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Add failed: $e')),
+      );
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final categoryProducts = productsByCategory[selectedCategory] ?? [];
@@ -68,13 +112,13 @@ class _ProductsScreenState extends State<ProductsScreen> {
             padding: const EdgeInsets.all(16.0),
             child: DropdownButton<String>(
               value: selectedCategory,
-              isExpanded: true,  // Full width
-              hint: const Text('Select Category'),  // Shown if no value
-              style: const TextStyle(color: Colors.black),  // Black text
-              dropdownColor: Colors.white,  // White background for dropdown
+              isExpanded: true,
+              hint: const Text('Select Category'),
+              style: const TextStyle(color: Colors.black),
+              dropdownColor: Colors.white,
               underline: Container(
                 height: 2,
-                color: const Color(0xFF32CD32),  // Lime underline
+                color: const Color(0xFF32CD32),
               ),
               items: categories.map((String category) {
                 return DropdownMenuItem<String>(
@@ -105,18 +149,13 @@ class _ProductsScreenState extends State<ProductsScreen> {
                             product['image'],
                             width: 60,
                             height: 60,
-                            fit: BoxFit.contain,  // Full image without cropping
+                            fit: BoxFit.contain,
                           )
                         : CircleAvatar(child: Text(product['name'][0])),
                     title: Text(product['name']),
                     subtitle: Text('\$${product['price']}'),
                     trailing: ElevatedButton(
-                      onPressed: () {
-                        // TODO: Add to cart (navigate to CartScreen)
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(content: Text('${product['name']} added to cart!')),
-                        );
-                      },
+                      onPressed: () => _addToCart(product),
                       child: const Icon(Icons.add_shopping_cart),
                     ),
                   ),

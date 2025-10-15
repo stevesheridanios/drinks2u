@@ -10,12 +10,12 @@ class MyApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'Drinks2U',
+      title: 'Danfels',
       theme: ThemeData(
         colorScheme: ColorScheme.fromSeed(seedColor: Colors.blue),
         useMaterial3: true,
       ),
-      home: const DrinksHomePage(title: 'Drinks2U - Browse Products'),
+      home: const DrinksHomePage(title: 'Danfels - Browse Products'),
     );
   }
 }

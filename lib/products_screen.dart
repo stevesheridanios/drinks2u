@@ -3,6 +3,7 @@ import 'package:flutter/services.dart' show rootBundle;
 import 'dart:convert';
 import '../models/product.dart';
 import '../cart_manager.dart';
+import 'product_detail_screen.dart';  // New import for detail navigation
 
 class ProductsScreen extends StatefulWidget {
   const ProductsScreen({super.key});
@@ -14,7 +15,7 @@ class ProductsScreen extends StatefulWidget {
 class _ProductsScreenState extends State<ProductsScreen> {
   List<Product> allProducts = [];
   List<Product> filteredProducts = [];
-  String selectedCategory = 'All';  // Default to show all
+  String selectedCategory = 'Aloe Vera';  // Default to Aloe Vera
   bool isLoading = true;  // Track loading state explicitly
 
   // Your 9 categories + 'All' for filtering (matched to hardcoded keys)
@@ -47,9 +48,9 @@ class _ProductsScreenState extends State<ProductsScreen> {
       if (mounted) {
         setState(() {
           allProducts = data.map((json) => Product.fromJson(json)).toList();
-          filteredProducts = allProducts;  // Start with all
+          filteredProducts = allProducts.where((p) => p.category == selectedCategory).toList();  // Default filter to Aloe Vera
           isLoading = false;
-          print('SetState: Loaded ${allProducts.length} products from JSON');  // Debug: Post-setState
+          print('SetState: Loaded ${allProducts.length} products from JSON, filtered to ${filteredProducts.length}');  // Debug: Post-setState
         });
       }
     } catch (e) {
@@ -82,9 +83,9 @@ class _ProductsScreenState extends State<ProductsScreen> {
     if (mounted) {
       setState(() {
         allProducts = fallback;
-        filteredProducts = allProducts;
+        filteredProducts = allProducts.where((p) => p.category == selectedCategory).toList();  // Default filter to Aloe Vera
         isLoading = false;
-        print('Fallback: Loaded ${allProducts.length} products from hardcoded');  // Debug: Post-setState
+        print('Fallback: Loaded ${allProducts.length} products from hardcoded, filtered to ${filteredProducts.length}');  // Debug: Post-setState
       });
     }
   }
@@ -202,9 +203,17 @@ class _ProductsScreenState extends State<ProductsScreen> {
                           return Card(
                             margin: const EdgeInsets.all(8.0),
                             child: ListTile(
+                              onTap: () {  // Tap ListTile to open detail screen
+                                Navigator.push(
+                                  context,
+                                  MaterialPageRoute(
+                                    builder: (context) => ProductDetailScreen(product: product),
+                                  ),
+                                );
+                              },
                               leading: (product.image?.isNotEmpty ?? false)
                                   ? Image.asset(
-                                      product.image!,  // Safe after null check
+                                      product.image!,
                                       width: 60,
                                       height: 60,
                                       fit: BoxFit.contain,
@@ -217,7 +226,7 @@ class _ProductsScreenState extends State<ProductsScreen> {
                                 '${product.description}\n\$${product.price.toStringAsFixed(2)}',
                               ),
                               trailing: ElevatedButton(
-                                onPressed: () => _addToCart(product),
+                                onPressed: () => _addToCart(product),  // Quick add single
                                 child: const Icon(Icons.add_shopping_cart),
                               ),
                             ),

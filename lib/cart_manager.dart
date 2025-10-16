@@ -38,6 +38,38 @@ class CartManager {
     print('Saved cart with ${cartJson.length} items under key: $_cartKey');  // Debug post-save
   }
 
+  static Future<void> addToCartWithQuantity(Product product, int initialQuantity) async {
+    print('Adding ${product.name} (ID: ${product.id}) x$initialQuantity to cart...');  // Debug
+    final prefs = await SharedPreferences.getInstance();
+    List<String> cartJson = await _getOrMigrateCart(prefs);
+    print('Current cart has ${cartJson.length} items before add');  // Debug pre-add
+    Map<String, dynamic> cartItem = {
+      'id': product.id,
+      'name': product.name,
+      'price': product.price,
+      'quantity': initialQuantity,
+    };
+
+    bool found = false;
+    for (int i = 0; i < cartJson.length; i++) {
+      final item = json.decode(cartJson[i]);
+      if (item['id'] == product.id) {
+        item['quantity'] = (item['quantity'] as int) + initialQuantity;
+        cartJson[i] = json.encode(item);
+        found = true;
+        print('Incremented quantity for ${product.name} to ${item['quantity']}');  // Debug update
+        break;
+      }
+    }
+    if (!found) {
+      cartJson.add(json.encode(cartItem));
+      print('Added new: ${product.name} x$initialQuantity');  // Debug new add
+    }
+
+    await prefs.setStringList(_cartKey, cartJson);
+    print('Saved cart with ${cartJson.length} items under key: $_cartKey');  // Debug post-save
+  }
+
   static Future<void> removeFromCart(int productId) async {
     print('Removing item ID: $productId from cart...');  // Debug
     final prefs = await SharedPreferences.getInstance();

@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/scheduler.dart';  // For Ticker for smooth auto-slide
 import 'dart:async';  // For Timer
+import 'package:shared_preferences/shared_preferences.dart';
 import 'products_screen.dart';
 import 'cart_screen.dart';
-import 'login_screen.dart';
+import 'screens/login_screen.dart';
+import 'screens/account_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -16,10 +18,12 @@ class _HomeScreenState extends State<HomeScreen> {
   final PageController _pageController = PageController();
   int _currentIndex = 0;
   Timer? _timer;
+  bool _isLoggedIn = false;
 
   @override
   void initState() {
     super.initState();
+    _loadAuth();  // Load auth status
     // Start auto-slide timer (3 seconds per image)
     _timer = Timer.periodic(const Duration(seconds: 3), (Timer timer) {
       if (_currentIndex < 2) {  // 3 images: 0, 1, 2
@@ -33,6 +37,15 @@ class _HomeScreenState extends State<HomeScreen> {
         curve: Curves.easeInOut,
       );
     });
+  }
+
+  Future<void> _loadAuth() async {
+    final prefs = await SharedPreferences.getInstance();
+    if (mounted) {
+      setState(() {
+        _isLoggedIn = prefs.getBool('is_logged_in') ?? false;
+      });
+    }
   }
 
   @override
@@ -101,17 +114,30 @@ class _HomeScreenState extends State<HomeScreen> {
                 );
               },
             ),
-            ListTile(
-              leading: const Icon(Icons.login, color: Colors.black),
-              title: const Text('Login', style: TextStyle(color: Colors.black)),
-              onTap: () {
-                Navigator.pop(context);
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(builder: (context) => const LoginScreen()),
-                );
-              },
-            ),
+            if (_isLoggedIn)
+              ListTile(
+                leading: const Icon(Icons.account_circle, color: Colors.black),
+                title: const Text('Account', style: TextStyle(color: Colors.black)),
+                onTap: () {
+                  Navigator.pop(context);
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(builder: (context) => const AccountScreen()),
+                  );
+                },
+              )
+            else
+              ListTile(
+                leading: const Icon(Icons.login, color: Colors.black),
+                title: const Text('Login', style: TextStyle(color: Colors.black)),
+                onTap: () {
+                  Navigator.pop(context);
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(builder: (context) => const LoginScreen()),
+                  );
+                },
+              ),
           ],
         ),
       ),

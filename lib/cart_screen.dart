@@ -119,6 +119,14 @@ class _CartScreenState extends State<CartScreen> {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Order sent via email! Check your inbox.')),
       );
+
+      // Log order to history
+      final prefs = await SharedPreferences.getInstance();
+      List<String>? orderHistory = prefs.getStringList('order_history');
+      orderHistory ??= [];
+      final orderLog = 'Order: ${DateTime.now().toString()} - Subtotal: \$${subtotal.toStringAsFixed(2)} - Items: ${cartItems.map((i) => '${i['name']} x${i['quantity']}').join(', ')}';
+      orderHistory.add(orderLog);
+      await prefs.setStringList('order_history', orderHistory);
     } catch (e) {
       print('Email failed: $e');
       ScaffoldMessenger.of(context).showSnackBar(
@@ -131,64 +139,64 @@ class _CartScreenState extends State<CartScreen> {
   }
 
   @override
-Widget build(BuildContext context) {
-  return Scaffold(
-    appBar: AppBar(
-      title: const Text('Cart'),
-      backgroundColor: const Color(0xFF32CD32),  // Lime green
-    ),
-    body: SafeArea(  // Wraps for safe zones (nav bar, notch)
-      child: isLoading
-          ? const Center(child: CircularProgressIndicator())
-          : cartItems.isEmpty
-              ? const Center(child: Text('Cart is empty'))
-              : Column(
-                  children: [
-                    Expanded(
-                      child: ListView.builder(
-                        itemCount: cartItems.length,
-                        itemBuilder: (context, index) {
-                          final item = cartItems[index];
-                          final lineTotal = item['price'] * item['quantity'];
-                          return Card(
-                            margin: const EdgeInsets.all(8.0),
-                            child: ListTile(
-                              title: Text('${item['name']} x${item['quantity']}'),
-                              subtitle: Text('\$${item['price'].toStringAsFixed(2)} each - Line Total: \$${lineTotal.toStringAsFixed(2)}'),
-                              trailing: IconButton(
-                                icon: const Icon(Icons.remove),
-                                onPressed: () => _decrementItem(item['id']),
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('Cart'),
+        backgroundColor: const Color(0xFF32CD32),  // Lime green
+      ),
+      body: SafeArea(  // Wraps for safe zones (nav bar, notch)
+        child: isLoading
+            ? const Center(child: CircularProgressIndicator())
+            : cartItems.isEmpty
+                ? const Center(child: Text('Cart is empty'))
+                : Column(
+                    children: [
+                      Expanded(
+                        child: ListView.builder(
+                          itemCount: cartItems.length,
+                          itemBuilder: (context, index) {
+                            final item = cartItems[index];
+                            final lineTotal = item['price'] * item['quantity'];
+                            return Card(
+                              margin: const EdgeInsets.all(8.0),
+                              child: ListTile(
+                                title: Text('${item['name']} x${item['quantity']}'),
+                                subtitle: Text('\$${item['price'].toStringAsFixed(2)} each - Line Total: \$${lineTotal.toStringAsFixed(2)}'),
+                                trailing: IconButton(
+                                  icon: const Icon(Icons.remove),
+                                  onPressed: () => _decrementItem(item['id']),
+                                ),
                               ),
-                            ),
-                          );
-                        },
+                            );
+                          },
+                        ),
                       ),
-                    ),
-                    Padding(
-                      padding: const EdgeInsets.all(16.0).copyWith(bottom: 32.0),  // Extra bottom space for nav bar
-                      child: Column(
-                        children: [
-                          Text('Subtotal: \$${subtotal.toStringAsFixed(2)}', style: Theme.of(context).textTheme.titleLarge),
-                          const SizedBox(height: 16),
-                          ElevatedButton(
-                            onPressed: _checkout,
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: const Color(0xFF32CD32),
-                              foregroundColor: Colors.black,
+                      Padding(
+                        padding: const EdgeInsets.all(16.0).copyWith(bottom: 32.0),  // Extra bottom space for nav bar
+                        child: Column(
+                          children: [
+                            Text('Subtotal: \$${subtotal.toStringAsFixed(2)}', style: Theme.of(context).textTheme.titleLarge),
+                            const SizedBox(height: 16),
+                            ElevatedButton(
+                              onPressed: _checkout,
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: const Color(0xFF32CD32),
+                                foregroundColor: Colors.black,
+                              ),
+                              child: const Text('Checkout & Send Order'),
                             ),
-                            child: const Text('Checkout & Send Order'),
-                          ),
-                        ],
+                          ],
+                        ),
                       ),
-                    ),
-                  ],
-                ),
-    ),
-    floatingActionButton: FloatingActionButton(
-      onPressed: _loadCart,  // Manual refresh
-      backgroundColor: const Color(0xFF32CD32),
-      child: const Icon(Icons.refresh),
-    ),
-  );
-}
+                    ],
+                  ),
+      ),
+      floatingActionButton: FloatingActionButton(
+        onPressed: _loadCart,  // Manual refresh
+        backgroundColor: const Color(0xFF32CD32),
+        child: const Icon(Icons.refresh),
+      ),
+    );
+  }
 }

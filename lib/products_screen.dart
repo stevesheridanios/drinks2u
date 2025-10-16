@@ -3,7 +3,7 @@ import 'package:flutter/services.dart' show rootBundle;
 import 'dart:convert';
 import '../models/product.dart';
 import '../cart_manager.dart';
-import 'product_detail_screen.dart';  // New import for detail navigation
+import 'screens/product_detail_screen.dart';
 
 class ProductsScreen extends StatefulWidget {
   const ProductsScreen({super.key});

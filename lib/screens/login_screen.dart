@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'dart:convert';  // For JSON and simple hash (demo only)
-import 'account_screen.dart';  // Nav to Account (same folder)
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'dart:convert';  // For JSON
+import 'account_screen.dart';  // Same folder
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -17,18 +19,17 @@ class _LoginScreenState extends State<LoginScreen> {
 
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
-  final _nameController = TextEditingController();  // Personal/Business name
+  final _nameController = TextEditingController();
   final _phoneController = TextEditingController();
   final _addressController = TextEditingController();
-  final _abnController = TextEditingController();  // Business only
-  final _operatingHoursController = TextEditingController();  // Business only
-  final _contactNameController = TextEditingController();  // Business only
-  final _contactPhoneController = TextEditingController();  // Business only
+  final _abnController = TextEditingController();
+  final _operatingHoursController = TextEditingController();
+  final _contactNameController = TextEditingController();
+  final _contactPhoneController = TextEditingController();
 
   Future<void> _handleSubmit() async {
     setState(() => _isLoading = true);
     try {
-      final prefs = await SharedPreferences.getInstance();
       final email = _emailController.text.trim();
       final password = _passwordController.text.trim();
 
@@ -38,73 +39,67 @@ class _LoginScreenState extends State<LoginScreen> {
       }
 
       if (_isCreatingAccount) {
-        print('Creating account for $email');  // Debug
-        // Registration validation
+        // Create user with Firebase Auth
+        final credential = await FirebaseAuth.instance.createUserWithEmailAndPassword(email: email, password: password);
+        final user = credential.user;
+        if (user == null) {
+          _showSnackBar('Failed to create account');
+          return;
+        }
+
+        // Validate and save profile to Firestore
         final name = _nameController.text.trim();
         final phone = _phoneController.text.trim();
         final address = _addressController.text.trim();
         if (name.isEmpty || phone.isEmpty || address.isEmpty) {
           _showSnackBar('Please fill all required fields: Name, Phone, Address');
+          await user.delete();  // Clean up failed user
           return;
         }
-        if (_isBusinessAccount) {
-          final abn = _abnController.text.trim();
-          final hours = _operatingHoursController.text.trim();
-          final contactName = _contactNameController.text.trim();
-          final contactPhone = _contactPhoneController.text.trim();
-          if (abn.isEmpty || hours.isEmpty || contactName.isEmpty || contactPhone.isEmpty) {
-            _showSnackBar('Please fill all business fields: ABN, Hours, Contact Name, Contact Phone');
-            return;
-          }
-        }
 
-        // Create user data JSON
         Map<String, dynamic> userData = {
           'email': email,
-          'password_hash': base64Encode(utf8.encode(password)),  // Demo hash
           'account_type': _isBusinessAccount ? 'business' : 'personal',
           'name': name,
           'phone': phone,
           'address': address,
         };
         if (_isBusinessAccount) {
+          final abn = _abnController.text.trim();
+          final hours = _operatingHoursController.text.trim();
+          final contactName = _contactNameController.text.trim();
+          final contactPhone = _contactPhoneController.text.trim();
+          if (abn.isEmpty || hours.isEmpty || contactName.isEmpty || contactPhone.isEmpty) {
+            _showSnackBar('Please fill all business fields');
+            await user.delete();
+            return;
+          }
           userData.addAll({
-            'business_name': name,  // Name = Business Name
-            'abn': _abnController.text.trim(),
-            'operating_hours': _operatingHoursController.text.trim(),
-            'contact_name': _contactNameController.text.trim(),
-            'contact_phone': _contactPhoneController.text.trim(),
+            'business_name': name,
+            'abn': abn,
+            'operating_hours': hours,
+            'contact_name': contactName,
+            'contact_phone': contactPhone,
           });
         }
 
-        await prefs.setString('user_data', json.encode(userData));
-        _showSnackBar('Account created successfully for $email!');
+        // Save to Firestore under user UID
+        await FirebaseFirestore.instance.collection('users').doc(user.uid).set(userData);
+        _showSnackBar('Account created successfully!');
       } else {
-        print('Logging in for $email');  // Debug
-        // Login: Check stored data
-        final storedData = prefs.getString('user_data');
-        if (storedData == null) {
-          _showSnackBar('No account found. Create one first.');
-          return;
-        }
-        final userData = json.decode(storedData) as Map<String, dynamic>;
-        if (userData['email'] != email || userData['password_hash'] != base64Encode(utf8.encode(password))) {
-          _showSnackBar('Invalid email or password');
-          return;
-        }
-        _showSnackBar('Logged in successfully as $email!');
+        // Login with Firebase Auth
+        await FirebaseAuth.instance.signInWithEmailAndPassword(email: email, password: password);
+        _showSnackBar('Logged in successfully!');
       }
 
-      // Success: Set logged in
-      await prefs.setBool('is_logged_in', true);
       if (mounted) {
         Navigator.pushReplacement(
           context,
-          MaterialPageRoute(builder: (context) => AccountScreen()),
+          MaterialPageRoute(builder: (context) => const AccountScreen()),
         );
       }
     } catch (e) {
-      print('Login error: $e');  // Debug
+      print('Auth error: $e');
       if (mounted) _showSnackBar('Error: $e');
     } finally {
       setState(() => _isLoading = false);
@@ -120,7 +115,7 @@ class _LoginScreenState extends State<LoginScreen> {
   void _toggleCreateAccount(bool? value) {
     setState(() {
       _isCreatingAccount = value ?? false;
-      if (!_isCreatingAccount) _isBusinessAccount = false;  // Reset business when switching to login
+      if (!_isCreatingAccount) _isBusinessAccount = false;
     });
   }
 
@@ -159,7 +154,7 @@ class _LoginScreenState extends State<LoginScreen> {
             SizedBox(
               width: double.infinity,
               child: ElevatedButton(
-                onPressed: _isLoading || _isCreatingAccount ? null : _handleSubmit,  // Disable if creating or loading
+                onPressed: _isLoading || _isCreatingAccount ? null : _handleSubmit,
                 style: ElevatedButton.styleFrom(
                   backgroundColor: const Color(0xFF32CD32),
                   foregroundColor: Colors.black,
@@ -169,7 +164,6 @@ class _LoginScreenState extends State<LoginScreen> {
               ),
             ),
             const SizedBox(height: 16),
-            // Toggle for Create Account
             Row(
               children: [
                 Checkbox(
@@ -207,7 +201,6 @@ class _LoginScreenState extends State<LoginScreen> {
                 maxLines: 3,
               ),
               const SizedBox(height: 16),
-              // Business toggle (only if creating account)
               Row(
                 children: [
                   const Text('Business Account? '),

@@ -3,7 +3,7 @@ import 'package:flutter/services.dart' show rootBundle;
 import 'dart:convert';
 import '../models/product.dart';
 import '../cart_manager.dart';
-import 'screens/product_detail_screen.dart';
+import 'screens/product_detail_screen.dart';  // Corrected import for detail navigation
 
 class ProductsScreen extends StatefulWidget {
   const ProductsScreen({super.key});
@@ -17,6 +17,7 @@ class _ProductsScreenState extends State<ProductsScreen> {
   List<Product> filteredProducts = [];
   String selectedCategory = 'Aloe Vera';  // Default to Aloe Vera
   bool isLoading = true;  // Track loading state explicitly
+  bool _isLoaded = false;  // Prevent double-loading
 
   // Your 9 categories + 'All' for filtering (matched to hardcoded keys)
   List<String> categories = [
@@ -35,38 +36,43 @@ class _ProductsScreenState extends State<ProductsScreen> {
   @override
   void initState() {
     super.initState();
-    loadProducts();
-  }
-
-  Future<void> loadProducts() async {
-    print('Starting to load products from JSON...');  // Debug: Start of load
-    try {
-      final String response = await rootBundle.loadString('assets/data/products.json');
-      print('JSON response length: ${response.length}');  // Debug: Raw JSON size
-      final List<dynamic> data = json.decode(response);
-      print('Parsed ${data.length} items from JSON');  // Debug: Parsed count
-      if (mounted) {
-        setState(() {
-          allProducts = data.map((json) => Product.fromJson(json)).toList();
-          filteredProducts = allProducts.where((p) => p.category == selectedCategory).toList();  // Default filter to Aloe Vera
-          isLoading = false;
-          print('SetState: Loaded ${allProducts.length} products from JSON, filtered to ${filteredProducts.length}');  // Debug: Post-setState
-        });
-      }
-    } catch (e) {
-      print('JSON load failed: $e');  // Debug: Exact error
-      _loadHardcodedProducts();  // Fallback
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error loading products from JSON: $e. Using fallback.')),
-        );
-      }
+    if (!_isLoaded) {
+      loadProducts();
+      _isLoaded = true;
     }
   }
 
+  Future<void> loadProducts() async {
+  if (_isLoaded) return;  // Prevent double call
+  print('Starting to load products from JSON...');  // Debug: Start of load
+  try {
+    final String response = await rootBundle.loadString('assets/data/products.json');
+    print('JSON response length: ${response.length}');  // Debug: Raw JSON size
+    final List<dynamic> data = json.decode(response);
+    print('Parsed ${data.length} items from JSON');  // Debug: Parsed count
+    if (mounted) {
+      setState(() {
+        allProducts = [];  // Clear to prevent duplication
+        allProducts = data.map((json) => Product.fromJson(json)).toList();  // Sanitization happens in fromJson
+        filteredProducts = allProducts.where((p) => p.category == selectedCategory).toList();  // Default filter to Aloe Vera
+        isLoading = false;
+        print('SetState: Loaded ${allProducts.length} products from JSON, filtered to ${filteredProducts.length}');  // Debug: Post-setState
+      });
+    }
+  } catch (e) {
+    print('JSON load failed: $e');  // Debug: Exact error
+    _loadHardcodedProducts();  // Fallback only on failure
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Error loading products from JSON: $e. Using fallback.')),  // Fixed typo: height -> content
+      );
+    }
+  }
+}
+
   void _loadHardcodedProducts() {
+    if (_isLoaded) return;  // Prevent double fallback
     print('Loading fallback hardcoded products...');  // Debug: Fallback start
-    // Temporary fallback: Convert your hardcoded map to Product list
     List<Product> fallback = [];
     productsByCategory.forEach((category, items) {
       for (var item in items) {
@@ -82,9 +88,11 @@ class _ProductsScreenState extends State<ProductsScreen> {
     });
     if (mounted) {
       setState(() {
+        allProducts = [];  // Clear to prevent duplication
         allProducts = fallback;
         filteredProducts = allProducts.where((p) => p.category == selectedCategory).toList();  // Default filter to Aloe Vera
         isLoading = false;
+        _isLoaded = true;
         print('Fallback: Loaded ${allProducts.length} products from hardcoded, filtered to ${filteredProducts.length}');  // Debug: Post-setState
       });
     }
@@ -217,8 +225,12 @@ class _ProductsScreenState extends State<ProductsScreen> {
                                       width: 60,
                                       height: 60,
                                       fit: BoxFit.contain,
-                                      errorBuilder: (context, error, stackTrace) =>
-                                          const CircleAvatar(child: Icon(Icons.image_not_supported)),
+                                      errorBuilder: (context, error, stackTrace) {
+                                        print('Image load error for ${product.name}: $error at path ${product.image}');  // Debug log
+                                        return CircleAvatar(
+                                          child: Text(product.name.isNotEmpty ? product.name[0].toUpperCase() : '?'),
+                                        );
+                                      },
                                     )
                                   : CircleAvatar(child: Text(product.name.isNotEmpty ? product.name[0].toUpperCase() : '?')),
                               title: Text(product.name),

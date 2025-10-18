@@ -2,16 +2,9 @@ import 'package:flutter/material.dart';
 import 'home_screen.dart'; // Import the new HomeScreen file
 import 'package:firebase_core/firebase_core.dart';
 
-import 'package:firebase_core/firebase_core.dart';
-
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  try {
-    await Firebase.initializeApp();
-    print('Firebase initialized successfully');  // Debug log
-  } catch (e) {
-    print('Firebase init error: $e');  // Catch for release mode
-  }
+  await Firebase.initializeApp();
   runApp(const DanfelsApp());
 }
 

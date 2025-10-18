@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "817894280881",
+    "project_id": "danfels",
+    "storage_bucket": "danfels.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:817894280881:android:86901ce789196c9ca11c90",
+        "android_client_info": {
+          "package_name": "com.stevesheridanios.danfels"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAkg0jCdFsDW8AU0VvtI94VZmvkDJhr7Qs"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

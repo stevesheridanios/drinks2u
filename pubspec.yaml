@@ -2,7 +2,7 @@ name: danfels
 description: "Danfels drinks app with categories, cart, and orders."
 publish_to: 'none'
 
-version: 1.0.0+1
+version: 1.1.0+1  # Bumped for latest changes
 
 environment:
   sdk: ^3.9.2
@@ -10,10 +10,12 @@ environment:
 dependencies:
   flutter:
     sdk: flutter
-  shared_preferences: ^2.2.2  # Local cart/auth storage
-  http: ^1.2.1  # Backend JSON fetch
+  shared_preferences: ^2.2.2  # Local cart/auth storage (fallback for Firebase)
+  http: ^1.2.1  # Backend JSON fetch (optional with Firestore)
   mailer: ^6.1.0  # Email orders (SMTP)
-
+  firebase_core: ^3.6.0  # Firebase base
+  firebase_auth: ^5.3.1  # Auth for login
+  cloud_firestore: ^5.4.4  # Database for products/orders
   cupertino_icons: ^1.0.8
 
 dev_dependencies:
@@ -26,4 +28,4 @@ flutter:
 
   assets:
     - assets/images/  # Logo and slideshow
-    - assets/data/products.json  # Product data sync from backend
+    - assets/data/products.json  # Product data sync from backend (fallback)

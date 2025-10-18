@@ -3,6 +3,9 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:mailer/mailer.dart';
 import 'package:mailer/smtp_server.dart';
 import 'dart:convert';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import '../screens/login_screen.dart';
 import '../cart_manager.dart';
 
 class CartScreen extends StatefulWidget {
@@ -89,6 +92,27 @@ class _CartScreenState extends State<CartScreen> {
   }
 
   Future<void> _checkout() async {
+    // Check login status
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: const Text('Please log in to place an order.'),
+          action: SnackBarAction(
+            label: 'Login',
+            onPressed: () {
+              Navigator.pop(context);  // Close cart if open
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (context) => const LoginScreen()),
+              );
+            },
+          ),
+        ),
+      );
+      return;
+    }
+
     if (cartItems.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Cart is empty! Add items first.')),
@@ -98,6 +122,7 @@ class _CartScreenState extends State<CartScreen> {
 
     // Format order as plain text for email body
     String emailBody = 'Danfels Order Summary\n\n';
+    emailBody += 'User: ${user.email}\n';
     emailBody += 'Items:\n';
     for (var item in cartItems) {
       emailBody += '- ${item['name']} \$${item['price']} x ${item['quantity']} = \$${ (item['price'] * item['quantity']).toStringAsFixed(2) }\n';
@@ -105,13 +130,13 @@ class _CartScreenState extends State<CartScreen> {
     emailBody += '\nTotal: \$${subtotal.toStringAsFixed(2)}\n';
     emailBody += 'Timestamp: ${DateTime.now().toString()}';
 
-    // Send real email (replace placeholders with your Gmail sender and app password)
-    final smtpServer = gmail('steve.sheridan.ios@gmail.com', 'demromgqmodowbjt');  // e.g., 'steve.sheridan.ios@gmail.com', 'abcd efgh ijkl mnop'
+    // Send real email
+    final smtpServer = gmail('steve.sheridan.ios@gmail.com', 'demromgqmodowbjt');
     final message = Message()
-      ..from = Address('steve.sheridan.ios@gmail.com')  // Sender (match SMTP)
-      ..recipients = [Address('steve.sheridan.ios@gmail.com')]  // Test recipient
+      ..from = const Address('steve.sheridan.ios@gmail.com')
+      ..recipients = [const Address('steve.sheridan.ios@gmail.com')]
       ..subject = 'New Danfels Order - Total \$${subtotal.toStringAsFixed(2)}'
-      ..text = emailBody;  // Order details in body
+      ..text = emailBody;
 
     try {
       final sendReport = await send(message, smtpServer);
@@ -120,17 +145,26 @@ class _CartScreenState extends State<CartScreen> {
         const SnackBar(content: Text('Order sent via email! Check your inbox.')),
       );
 
-      // Log order to history
+      // Log order to history (local)
       final prefs = await SharedPreferences.getInstance();
       List<String>? orderHistory = prefs.getStringList('order_history');
       orderHistory ??= [];
       final orderLog = 'Order: ${DateTime.now().toString()} - Subtotal: \$${subtotal.toStringAsFixed(2)} - Items: ${cartItems.map((i) => '${i['name']} x${i['quantity']}').join(', ')}';
       orderHistory.add(orderLog);
       await prefs.setStringList('order_history', orderHistory);
+
+      // Save order to Firestore under user UID
+      await FirebaseFirestore.instance.collection('orders').add({
+        'userId': user.uid,
+        'userEmail': user.email,
+        'items': cartItems,
+        'total': subtotal,
+        'timestamp': FieldValue.serverTimestamp(),
+      });
     } catch (e) {
-      print('Email failed: $e');
+      print('Checkout failed: $e');
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Email send failed: $e - Check console.')),
+        SnackBar(content: Text('Checkout failed: $e - Check console.')),
       );
     }
 

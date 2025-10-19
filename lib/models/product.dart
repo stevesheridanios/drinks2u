@@ -3,7 +3,7 @@ class Product {
   final String name;
   final String category;
   final double price;
-  final String? image;  // Nullable: Handles null for products without images
+  final String? image; // Nullable: Handles null for products without images
   final String description;
 
   Product({
@@ -11,7 +11,7 @@ class Product {
     required this.name,
     required this.category,
     required this.price,
-    this.image,  // No 'required'—defaults to null if omitted
+    this.image, // No 'required'—defaults to null if omitted
     required this.description,
   });
 
@@ -22,7 +22,6 @@ class Product {
       int lastSlashIndex = sanitizedImage.lastIndexOf('/');
       String pathPrefix = (lastSlashIndex >= 0) ? sanitizedImage.substring(0, lastSlashIndex + 1) : '';
       String filename = (lastSlashIndex >= 0) ? sanitizedImage.substring(lastSlashIndex + 1) : sanitizedImage;
-
       // Sanitize filename: lowercase, trim, replace spaces/special chars
       filename = filename
           .toLowerCase()
@@ -37,17 +36,15 @@ class Product {
           .replaceAll('<', '_')
           .replaceAll('>', '_')
           .replaceAll('|', '_');
-
       sanitizedImage = pathPrefix + filename;
     }
-
     return Product(
-      id: json['id'],
-      name: json['name'],
-      category: json['category'],
-      price: json['price'],
+      id: int.tryParse(json['id']?.toString() ?? '0') ?? 0,  // Safe parse: Handles String IDs from Firestore
+      name: json['name'] ?? '',
+      category: json['category'] ?? '',
+      price: double.tryParse(json['price']?.toString() ?? '0') ?? 0.0,  // Safe parse for double
       image: sanitizedImage,
-      description: json['description'],
+      description: json['description'] ?? '',
     );
   }
 }

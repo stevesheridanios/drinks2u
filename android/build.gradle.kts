@@ -1,13 +1,13 @@
 buildscript {
-    val kotlin_version = "2.2.20"
+    val kotlin_version = "2.0.20"  // Latest stable Kotlin for Gradle plugin
     repositories {
         google()
         mavenCentral()
     }
     dependencies {
-        classpath("com.android.tools.build:gradle:8.13.0")  // Latest AGP; requires Gradle 8.10+
+        classpath("com.android.tools.build:gradle:8.5.2")  // Latest stable AGP; compatible with Gradle 8.10+
         classpath("org.jetbrains.kotlin:kotlin-gradle-plugin:$kotlin_version")
-        classpath("com.google.gms:google-services:4.4.3")  // Latest for Firebase
+        classpath("com.google.gms:google-services:4.4.0")  // Latest stable for Firebase
     }
 }
 

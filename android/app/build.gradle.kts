@@ -8,7 +8,7 @@ plugins {
 }
 
 android {
-    namespace = "com.example.drinks2u"
+    namespace = "com.stevesheridanios.danfels"  // Updated to match applicationId for consistency
     compileSdk = flutter.compileSdkVersion
     ndkVersion = flutter.ndkVersion
 
@@ -28,8 +28,8 @@ android {
         // For more information, see: https://flutter.dev/to/review-gradle-config.
         minSdk = flutter.minSdkVersion
         targetSdk = flutter.targetSdkVersion
-        versionCode = flutter.versionCode
-        versionName = flutter.versionName
+        versionCode = flutter.versionCode  // Auto-pulls from pubspec.yaml (increment +BUILD there)
+        versionName = flutter.versionName  // Auto-pulls from pubspec.yaml (MAJOR.MINOR.PATCH)
     }
 
     buildTypes {

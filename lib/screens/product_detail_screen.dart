@@ -4,7 +4,6 @@ import '../../cart_manager.dart';
 
 class ProductDetailScreen extends StatefulWidget {
   final Product product;
-
   const ProductDetailScreen({super.key, required this.product});
 
   @override
@@ -13,7 +12,7 @@ class ProductDetailScreen extends StatefulWidget {
 
 class _ProductDetailScreenState extends State<ProductDetailScreen> {
   int quantity = 1;
-  bool isCarton = false;  // Toggle for carton (12-pack)
+  bool isCarton = false; // Toggle for carton (12-pack)
 
   @override
   void initState() {
@@ -50,7 +49,7 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
       // Update CartManager to support initial quantity (modify addToCart to accept qty param)
       await CartManager.addToCartWithQuantity(widget.product, quantity);
       if (mounted) {
-        Navigator.pop(context);  // Back to Products
+        Navigator.pop(context); // Back to Products
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('${widget.product.name} x$quantity added to cart!')),
         );
@@ -68,7 +67,6 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
   Widget build(BuildContext context) {
     final double displayPrice = isCarton ? widget.product.price * 12 : widget.product.price;
     final double total = displayPrice * quantity;
-
     return Scaffold(
       appBar: AppBar(
         title: Text(widget.product.name),
@@ -79,19 +77,33 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Image
+            // Image (updated: Network/Asset detection + error handling)
             Center(
               child: (widget.product.image?.isNotEmpty ?? false)
-                  ? Image.asset(
-                      widget.product.image!,
-                      height: 200,
-                      fit: BoxFit.contain,
-                      errorBuilder: (context, error, stackTrace) =>
-                          const Icon(Icons.image_not_supported, size: 200),
-                    )
+                  ? (widget.product.image!.startsWith('http')
+                      ? Image.network(
+                          widget.product.image!,
+                          height: 200,
+                          fit: BoxFit.contain,
+                          loadingBuilder: (context, child, loadingProgress) =>
+                              loadingProgress == null ? child : const CircularProgressIndicator(),
+                          errorBuilder: (context, error, stackTrace) {
+                            print('Network image error in details for ${widget.product.name}: $error');
+                            return const Icon(Icons.image_not_supported, size: 200, color: Colors.grey);
+                          },
+                        )
+                      : Image.asset(
+                          widget.product.image!,
+                          height: 200,
+                          fit: BoxFit.contain,
+                          errorBuilder: (context, error, stackTrace) {
+                            print('Asset image error in details for ${widget.product.name}: $error');
+                            return const Icon(Icons.image_not_supported, size: 200, color: Colors.grey);
+                          },
+                        ))
                   : CircleAvatar(
                       radius: 100,
-                      child: Text(widget.product.name[0].toUpperCase()),
+                      child: Text(widget.product.name.isNotEmpty ? widget.product.name[0].toUpperCase() : '?'),
                     ),
             ),
             const SizedBox(height: 16),

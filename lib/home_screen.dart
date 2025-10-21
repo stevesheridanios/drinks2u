@@ -1,11 +1,12 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/scheduler.dart';  // For Ticker for smooth auto-slide
-import 'dart:async';  // For Timer
+import 'package:flutter/scheduler.dart'; // For Ticker for smooth auto-slide
+import 'dart:async'; // For Timer
 import 'package:shared_preferences/shared_preferences.dart';
 import 'products_screen.dart';
 import 'cart_screen.dart';
 import 'screens/login_screen.dart';
 import 'screens/account_screen.dart';
+import 'package:package_info_plus/package_info_plus.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -23,10 +24,10 @@ class _HomeScreenState extends State<HomeScreen> {
   @override
   void initState() {
     super.initState();
-    _loadAuth();  // Load auth status
+    _loadAuth(); // Load auth status
     // Start auto-slide timer (3 seconds per image)
     _timer = Timer.periodic(const Duration(seconds: 3), (Timer timer) {
-      if (_currentIndex < 2) {  // 3 images: 0, 1, 2
+      if (_currentIndex < 2) { // 3 images: 0, 1, 2
         _currentIndex++;
       } else {
         _currentIndex = 0;
@@ -59,15 +60,14 @@ class _HomeScreenState extends State<HomeScreen> {
   Widget build(BuildContext context) {
     // Slideshow images (your PNGs)
     final List<String> slideshowImages = [
-      'assets/images/slide1.png',  // Coconut Water
-      'assets/images/slide2.png',  // Aloe Vera
-      'assets/images/slide3.png',  // Iced Tea
+      'assets/images/slide1.png', // Coconut Water
+      'assets/images/slide2.png', // Aloe Vera
+      'assets/images/slide3.png', // Iced Tea
     ];
-
     return Scaffold(
       appBar: AppBar(
         title: const Text('Danfels'),
-        backgroundColor: const Color(0xFF32CD32),  // Lime green
+        backgroundColor: const Color(0xFF32CD32), // Lime green
         foregroundColor: Colors.black,
       ),
       drawer: Drawer(
@@ -76,7 +76,7 @@ class _HomeScreenState extends State<HomeScreen> {
           children: [
             const DrawerHeader(
               decoration: BoxDecoration(
-                color: Color(0xFF32CD32),  // Lime green
+                color: Color(0xFF32CD32), // Lime green
               ),
               child: Text(
                 'Menu',
@@ -157,7 +157,7 @@ class _HomeScreenState extends State<HomeScreen> {
           ),
           // Slideshow of 3 images using PageView with auto-slide
           SizedBox(
-            height: 551.25,  // Increased by 5% from 525
+            height: 551.25, // Increased by 5% from 525
             child: Stack(
               children: [
                 PageView.builder(
@@ -218,7 +218,7 @@ class _HomeScreenState extends State<HomeScreen> {
                         decoration: BoxDecoration(
                           shape: BoxShape.circle,
                           color: _currentIndex == index
-                              ? const Color(0xFF32CD32)  // Lime green for current
+                              ? const Color(0xFF32CD32) // Lime green for current
                               : Theme.of(context).primaryColor.withOpacity(0.4),
                         ),
                       ),
@@ -227,6 +227,23 @@ class _HomeScreenState extends State<HomeScreen> {
                 ),
               ],
             ),
+          ),
+          // App Version (new: bottom-aligned, subtle)
+          FutureBuilder<PackageInfo>(
+            future: PackageInfo.fromPlatform(),
+            builder: (context, snapshot) {
+              if (snapshot.hasData) {
+                return Container(
+                  padding: const EdgeInsets.all(8.0),
+                  alignment: Alignment.center,
+                  child: Text(
+                    'App Version: ${snapshot.data!.version} (+${snapshot.data!.buildNumber})',
+                    style: const TextStyle(fontSize: 12, color: Colors.grey),
+                  ),
+                );
+              }
+              return const SizedBox.shrink(); // Hide until loaded
+            },
           ),
         ],
       ),

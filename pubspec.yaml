@@ -2,7 +2,7 @@ name: danfels
 description: "Danfels drinks app with categories, cart, and orders."
 publish_to: 'none'
 
-version: 1.5.1+1  # Bumped for latest changes
+version: 1.5.2+2  # Bumped for latest changes
 
 environment:
   sdk: ^3.9.2
@@ -17,6 +17,7 @@ dependencies:
   firebase_auth: ^5.3.1  # Auth for login
   cloud_firestore: ^5.4.4  # Database for products/orders
   cupertino_icons: ^1.0.8
+  package_info_plus: ^4.2.0  # Or latest
 
 dev_dependencies:
   flutter_test:

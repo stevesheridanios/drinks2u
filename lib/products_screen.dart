@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart' show rootBundle;
+import 'package:flutter/foundation.dart'; // For kDebugMode
 import 'dart:convert';
 import '../models/product.dart';
 import '../cart_manager.dart';
@@ -77,12 +78,11 @@ class _ProductsScreenState extends State<ProductsScreen> {
       for (int i = 0; i < data.length && i < 3; i++) {
         final item = data[i];
         print('Item $i debug:');
-        print('  id: ${item['id']} (type: ${item['id'].runtimeType})');
-        print('  cartonQty: ${item['cartonQty']} (type: ${item['cartonQty'].runtimeType})');
-        print('  regional: ${item['regional']} (type: ${item['regional'].runtimeType})');
-        print('  price: ${item['price']} (type: ${item['price'].runtimeType})');
+        print(' id: ${item['id']} (type: ${item['id'].runtimeType})');
+        print(' cartonQty: ${item['cartonQty']} (type: ${item['cartonQty'].runtimeType})');
+        print(' regional: ${item['regional']} (type: ${item['regional'].runtimeType})');
+        print(' price: ${item['price']} (type: ${item['price'].runtimeType})');
       }
-
       print('Mapped ${data.length} items from Firestore'); // Debug: Parsed count
       if (mounted) {
         setState(() {
@@ -94,7 +94,7 @@ class _ProductsScreenState extends State<ProductsScreen> {
           print('SetState: Loaded ${allProducts.length} products from Firestore, filtered to ${filteredProducts.length}'); // Debug: Post-set-state
         });
       }
-        } catch (e) {
+    } catch (e) {
       print('Firestore load failed: $e'); // Debug: Exact error
       print('Falling back to JSON...'); // Debug: Transition to fallback
       try {
@@ -181,7 +181,7 @@ class _ProductsScreenState extends State<ProductsScreen> {
     }
   }
 
-    // Keep your hardcoded map here temporarily for fallback
+  // Keep your hardcoded map here temporarily for fallback
   Map<String, List<Map<String, dynamic>>> productsByCategory = {
     'Aloe Vera': [
       {'name': 'Aloe Vera Lychee', 'price': 3.25, 'image': 'assets/images/aloe_lychee.png'},
@@ -272,6 +272,10 @@ class _ProductsScreenState extends State<ProductsScreen> {
                             itemCount: filteredProducts.length,
                             itemBuilder: (context, index) {
                               final product = filteredProducts[index];
+                              // Debug print for image type detection
+                              if (kDebugMode) {
+                                print('Debug: ${product.name} image="${product.image}" startsWith http: ${product.image?.startsWith("http") ?? false}');
+                              }
                               return Card(
                                 margin: const EdgeInsets.all(8.0),
                                 child: ListTile(
@@ -284,18 +288,37 @@ class _ProductsScreenState extends State<ProductsScreen> {
                                     );
                                   },
                                   leading: (product.image?.isNotEmpty ?? false)
-                                      ? Image.asset(
-                                          product.image!,
-                                          width: 60,
-                                          height: 60,
-                                          fit: BoxFit.contain,
-                                          errorBuilder: (context, error, stackTrace) {
-                                            print('Image load error for ${product.name}: $error at path ${product.image}'); // Debug log
-                                            return CircleAvatar(
-                                              child: Text(product.name.isNotEmpty ? product.name[0].toUpperCase() : '?'),
-                                            );
-                                          },
-                                        )
+                                      ? (product.image!.startsWith('http') // URL from Storage
+                                          ? Image.network(
+                                              product.image!,
+                                              width: 60,
+                                              height: 60,
+                                              fit: BoxFit.contain,
+                                              loadingBuilder: (context, child, loadingProgress) =>
+                                                  loadingProgress == null ? child : const CircularProgressIndicator(),
+                                              errorBuilder: (context, error, stackTrace) {
+                                                if (kDebugMode) {
+                                                  print('Network image load error for ${product.name}: $error at URL ${product.image}'); // Debug log
+                                                }
+                                                return CircleAvatar(
+                                                  child: Text(product.name.isNotEmpty ? product.name[0].toUpperCase() : '?'),
+                                                );
+                                              },
+                                            )
+                                          : Image.asset( // Fallback asset path
+                                              product.image!,
+                                              width: 60,
+                                              height: 60,
+                                              fit: BoxFit.contain,
+                                              errorBuilder: (context, error, stackTrace) {
+                                                if (kDebugMode) {
+                                                  print('Asset image load error for ${product.name}: $error at path ${product.image}'); // Debug log
+                                                }
+                                                return CircleAvatar(
+                                                  child: Text(product.name.isNotEmpty ? product.name[0].toUpperCase() : '?'),
+                                                );
+                                              },
+                                            ))
                                       : CircleAvatar(child: Text(product.name.isNotEmpty ? product.name[0].toUpperCase() : '?')),
                                   title: Text(product.name),
                                   subtitle: Text(
@@ -309,7 +332,7 @@ class _ProductsScreenState extends State<ProductsScreen> {
                               );
                             },
                           ),
-                ),
+                  ),
           ),
         ],
       ),

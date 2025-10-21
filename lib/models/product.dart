@@ -18,31 +18,36 @@ class Product {
   factory Product.fromJson(Map<String, dynamic> json) {
     String? sanitizedImage = json['image'];
     if (sanitizedImage != null && sanitizedImage.isNotEmpty) {
-      // Split path and sanitize filename only (preserve / separator)
-      int lastSlashIndex = sanitizedImage.lastIndexOf('/');
-      String pathPrefix = (lastSlashIndex >= 0) ? sanitizedImage.substring(0, lastSlashIndex + 1) : '';
-      String filename = (lastSlashIndex >= 0) ? sanitizedImage.substring(lastSlashIndex + 1) : sanitizedImage;
-      // Sanitize filename: lowercase, trim, replace spaces/special chars
-      filename = filename
-          .toLowerCase()
-          .trim()
-          .replaceAll(' ', '_')
-          .replaceAll('/', '_')
-          .replaceAll('\\', '_')
-          .replaceAll(':', '_')
-          .replaceAll('?', '_')
-          .replaceAll('*', '_')
-          .replaceAll('"', '_')
-          .replaceAll('<', '_')
-          .replaceAll('>', '_')
-          .replaceAll('|', '_');
-      sanitizedImage = pathPrefix + filename;
+      if (sanitizedImage.startsWith('http')) {
+        // For URLs (Storage), skip sanitization to preserve query params like ?alt=media
+        sanitizedImage = sanitizedImage;
+      } else {
+        // For local/asset paths, sanitize filename only (preserve / separator)
+        int lastSlashIndex = sanitizedImage.lastIndexOf('/');
+        String pathPrefix = (lastSlashIndex >= 0) ? sanitizedImage.substring(0, lastSlashIndex + 1) : '';
+        String filename = (lastSlashIndex >= 0) ? sanitizedImage.substring(lastSlashIndex + 1) : sanitizedImage;
+        // Sanitize filename: lowercase, trim, replace spaces/special chars
+        filename = filename
+            .toLowerCase()
+            .trim()
+            .replaceAll(' ', '_')
+            .replaceAll('/', '_')
+            .replaceAll('\\', '_')
+            .replaceAll(':', '_')
+            .replaceAll('?', '_')
+            .replaceAll('*', '_')
+            .replaceAll('"', '_')
+            .replaceAll('<', '_')
+            .replaceAll('>', '_')
+            .replaceAll('|', '_');
+        sanitizedImage = pathPrefix + filename;
+      }
     }
     return Product(
-      id: int.tryParse(json['id']?.toString() ?? '0') ?? 0,  // Safe parse: Handles String IDs from Firestore
+      id: int.tryParse(json['id']?.toString() ?? '0') ?? 0, // Safe parse: Handles String IDs from Firestore
       name: json['name'] ?? '',
       category: json['category'] ?? '',
-      price: double.tryParse(json['price']?.toString() ?? '0') ?? 0.0,  // Safe parse for double
+      price: double.tryParse(json['price']?.toString() ?? '0') ?? 0.0, // Safe parse for double
       image: sanitizedImage,
       description: json['description'] ?? '',
     );

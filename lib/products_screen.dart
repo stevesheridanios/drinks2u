@@ -3,7 +3,7 @@ import 'package:flutter/services.dart' show rootBundle;
 import 'dart:convert';
 import '../models/product.dart';
 import '../cart_manager.dart';
-import 'screens/product_detail_screen.dart'; // Corrected import for detail navigation
+import 'screens/product_detail_screen.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 
 class ProductsScreen extends StatefulWidget {
@@ -94,7 +94,7 @@ class _ProductsScreenState extends State<ProductsScreen> {
           print('SetState: Loaded ${allProducts.length} products from Firestore, filtered to ${filteredProducts.length}'); // Debug: Post-set-state
         });
       }
-    } catch (e) {
+        } catch (e) {
       print('Firestore load failed: $e'); // Debug: Exact error
       print('Falling back to JSON...'); // Debug: Transition to fallback
       try {
@@ -181,7 +181,7 @@ class _ProductsScreenState extends State<ProductsScreen> {
     }
   }
 
-  // Keep your hardcoded map here temporarily for fallback
+    // Keep your hardcoded map here temporarily for fallback
   Map<String, List<Map<String, dynamic>>> productsByCategory = {
     'Aloe Vera': [
       {'name': 'Aloe Vera Lychee', 'price': 3.25, 'image': 'assets/images/aloe_lychee.png'},
@@ -223,6 +223,13 @@ class _ProductsScreenState extends State<ProductsScreen> {
       appBar: AppBar(
         title: const Text('Products'),
         backgroundColor: const Color(0xFF32CD32), // Lime green
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.refresh, color: Colors.white), // White icon for contrast
+            onPressed: loadProducts, // Calls your Firestore reload method
+            tooltip: 'Refresh Products', // Accessibility hint
+          ),
+        ],
       ),
       body: Column(
         children: [
@@ -256,19 +263,19 @@ class _ProductsScreenState extends State<ProductsScreen> {
           Expanded(
             child: isLoading
                 ? const Center(child: CircularProgressIndicator())
-                : RefreshIndicator(  // Pull-to-refresh wrapper
-                    onRefresh: loadProducts,  // Reload from Firestore on pull
+                : RefreshIndicator( // Pull-to-refresh wrapper
+                    onRefresh: loadProducts, // Reload from Firestore on pull
                     child: filteredProducts.isEmpty
                         ? const Center(child: Text('No products found in this category.'))
                         : ListView.builder(
-                            physics: const AlwaysScrollableScrollPhysics(),  // Enables pull even if short list
+                            physics: const AlwaysScrollableScrollPhysics(), // Enables pull even if short list
                             itemCount: filteredProducts.length,
                             itemBuilder: (context, index) {
                               final product = filteredProducts[index];
                               return Card(
                                 margin: const EdgeInsets.all(8.0),
                                 child: ListTile(
-                                  onTap: () {  // Tap ListTile to open detail screen
+                                  onTap: () { // Tap ListTile to open detail screen
                                     Navigator.push(
                                       context,
                                       MaterialPageRoute(
@@ -283,7 +290,7 @@ class _ProductsScreenState extends State<ProductsScreen> {
                                           height: 60,
                                           fit: BoxFit.contain,
                                           errorBuilder: (context, error, stackTrace) {
-                                            print('Image load error for ${product.name}: $error at path ${product.image}');  // Debug log
+                                            print('Image load error for ${product.name}: $error at path ${product.image}'); // Debug log
                                             return CircleAvatar(
                                               child: Text(product.name.isNotEmpty ? product.name[0].toUpperCase() : '?'),
                                             );
@@ -295,7 +302,7 @@ class _ProductsScreenState extends State<ProductsScreen> {
                                     '${product.description}\n\$${product.price.toStringAsFixed(2)}',
                                   ),
                                   trailing: ElevatedButton(
-                                    onPressed: () => _addToCart(product),  // Quick add single
+                                    onPressed: () => _addToCart(product), // Quick add single
                                     child: const Icon(Icons.add_shopping_cart),
                                   ),
                                 ),

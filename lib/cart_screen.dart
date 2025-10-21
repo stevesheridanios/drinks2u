@@ -36,7 +36,7 @@ class _CartScreenState extends State<CartScreen> {
   }
 
   Future<void> _loadCart() async {
-    print('CartScreen: Starting load...');  // Debug
+    print('CartScreen: Starting load...'); // Debug
     try {
       final items = await CartManager.getCartItems();
       final total = await CartManager.getSubtotal();
@@ -45,11 +45,11 @@ class _CartScreenState extends State<CartScreen> {
           cartItems = items;
           subtotal = total;
           isLoading = false;
-          print('CartScreen: Loaded ${items.length} items, subtotal \$${total.toStringAsFixed(2)}');  // Debug
+          print('CartScreen: Loaded ${items.length} items, subtotal \$${total.toStringAsFixed(2)}'); // Debug
         });
       }
     } catch (e) {
-      print('CartScreen load error: $e');  // Debug
+      print('CartScreen load error: $e'); // Debug
       if (mounted) {
         setState(() {
           isLoading = false;
@@ -65,7 +65,7 @@ class _CartScreenState extends State<CartScreen> {
 
   Future<void> _decrementItem(int productId) async {
     final prefs = await SharedPreferences.getInstance();
-    final cartKey = 'cart_items';  // Hardcode to match CartManager
+    final cartKey = 'cart_items'; // Hardcode to match CartManager
     List<String> cartJson = prefs.getStringList(cartKey) ?? [];
     bool updated = false;
     for (int i = 0; i < cartJson.length; i++) {
@@ -84,7 +84,7 @@ class _CartScreenState extends State<CartScreen> {
     }
     if (updated) {
       await prefs.setStringList(cartKey, cartJson);
-      await _loadCart();  // Refresh UI
+      await _loadCart(); // Refresh UI
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Item updated in cart')),
       );
@@ -101,7 +101,7 @@ class _CartScreenState extends State<CartScreen> {
           action: SnackBarAction(
             label: 'Login',
             onPressed: () {
-              Navigator.pop(context);  // Close cart if open
+              Navigator.pop(context); // Close cart if open
               Navigator.push(
                 context,
                 MaterialPageRoute(builder: (context) => const LoginScreen()),
@@ -112,7 +112,6 @@ class _CartScreenState extends State<CartScreen> {
       );
       return;
     }
-
     if (cartItems.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Cart is empty! Add items first.')),
@@ -120,23 +119,66 @@ class _CartScreenState extends State<CartScreen> {
       return;
     }
 
-    // Format order as plain text for email body
-    String emailBody = 'Danfels Order Summary\n\n';
-    emailBody += 'User: ${user.email}\n';
-    emailBody += 'Items:\n';
-    for (var item in cartItems) {
-      emailBody += '- ${item['name']} \$${item['price']} x ${item['quantity']} = \$${ (item['price'] * item['quantity']).toStringAsFixed(2) }\n';
+    // Fetch user profile from Firestore
+    DocumentSnapshot userDoc = await FirebaseFirestore.instance.collection('users').doc(user.uid).get();
+    if (!userDoc.exists) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Profile not found. Please update your account.')),
+      );
+      return;
     }
-    emailBody += '\nTotal: \$${subtotal.toStringAsFixed(2)}\n';
-    emailBody += 'Timestamp: ${DateTime.now().toString()}';
+    Map<String, dynamic> userData = userDoc.data() as Map<String, dynamic>;
+    String customerType = userData['type'] ?? 'personal';  // 'personal' or 'business' (add to account creation if missing)
 
-    // Send real email
+    // Build customer details HTML table
+    String customerDetails = '''
+    <h3>Customer Details</h3>
+    <table border="1" style="border-collapse: collapse; width: 100%;">
+      <tr><th>Customer Type</th><td>${customerType.toUpperCase()}</td></tr>
+      <tr><th>Name</th><td>${userData['name'] ?? 'N/A'}</td></tr>
+      <tr><th>Email</th><td>${userData['email'] ?? 'N/A'}</td></tr>
+      <tr><th>Phone</th><td>${userData['phone'] ?? 'N/A'}</td></tr>
+      <tr><th>Address</th><td>${userData['address'] ?? 'N/A'}</td></tr>
+    ''';
+    if (customerType == 'business') {
+      customerDetails += '''
+      <tr><th>ABN</th><td>${userData['abn'] ?? 'N/A'}</td></tr>
+      <tr><th>Operating Hours</th><td>${userData['hours'] ?? 'N/A'}</td></tr>
+      <tr><th>Contact Person</th><td>${userData['contactPerson'] ?? 'N/A'}</td></tr>
+      <tr><th>Contact Number</th><td>${userData['contactNumber'] ?? 'N/A'}</td></tr>
+      ''';
+    }
+    customerDetails += '</table>';
+
+    // Order items table
+    String orderItems = '<h3>Order Items</h3><table border="1" style="border-collapse: collapse; width: 100%;">';
+    orderItems += '<tr><th>Item</th><th>Qty</th><th>Price</th><th>Total</th></tr>';
+    for (var item in cartItems) {
+      double lineTotal = item['price'] * item['quantity'];
+      orderItems += '<tr><td>${item['name']}</td><td>${item['quantity']}</td><td>\$${item['price'].toStringAsFixed(2)}</td><td>\$${lineTotal.toStringAsFixed(2)}</td></tr>';
+    }
+    orderItems += '<tr><td colspan="3"><strong>Subtotal</strong></td><td>\$${subtotal.toStringAsFixed(2)}</td></tr></table>';
+
+    // Full email body
+    String emailBody = '''
+    <html>
+    <body>
+      <h2>New Order from Danfels App</h2>
+      $customerDetails
+      $orderItems
+      <p><strong>Timestamp:</strong> ${DateTime.now().toString()}</p>
+      <p><strong>User ID:</strong> ${user.uid}</p>
+    </body>
+    </html>
+    ''';
+
+    // Send email with mailer (your existing SMTP)
     final smtpServer = gmail('steve.sheridan.ios@gmail.com', 'demromgqmodowbjt');
     final message = Message()
       ..from = const Address('steve.sheridan.ios@gmail.com')
       ..recipients = [const Address('steve.sheridan.ios@gmail.com')]
       ..subject = 'New Danfels Order - Total \$${subtotal.toStringAsFixed(2)}'
-      ..text = emailBody;
+      ..html = emailBody;
 
     try {
       final sendReport = await send(message, smtpServer);
@@ -144,7 +186,6 @@ class _CartScreenState extends State<CartScreen> {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Order sent via email! Check your inbox.')),
       );
-
       // Log order to history (local)
       final prefs = await SharedPreferences.getInstance();
       List<String>? orderHistory = prefs.getStringList('order_history');
@@ -152,11 +193,10 @@ class _CartScreenState extends State<CartScreen> {
       final orderLog = 'Order: ${DateTime.now().toString()} - Subtotal: \$${subtotal.toStringAsFixed(2)} - Items: ${cartItems.map((i) => '${i['name']} x${i['quantity']}').join(', ')}';
       orderHistory.add(orderLog);
       await prefs.setStringList('order_history', orderHistory);
-
       // Save order to Firestore under user UID
       await FirebaseFirestore.instance.collection('orders').add({
         'userId': user.uid,
-        'userEmail': user.email,
+        'customerDetails': userData,  // Add full profile for reference
         'items': cartItems,
         'total': subtotal,
         'timestamp': FieldValue.serverTimestamp(),
@@ -167,9 +207,8 @@ class _CartScreenState extends State<CartScreen> {
         SnackBar(content: Text('Checkout failed: $e - Check console.')),
       );
     }
-
-    await CartManager.clearCart();  // Clear via manager
-    await _loadCart();  // Refresh UI
+    await CartManager.clearCart(); // Clear via manager
+    await _loadCart(); // Refresh UI
   }
 
   @override
@@ -177,9 +216,9 @@ class _CartScreenState extends State<CartScreen> {
     return Scaffold(
       appBar: AppBar(
         title: const Text('Cart'),
-        backgroundColor: const Color(0xFF32CD32),  // Lime green
+        backgroundColor: const Color(0xFF32CD32), // Lime green
       ),
-      body: SafeArea(  // Wraps for safe zones (nav bar, notch)
+      body: SafeArea( // Wraps for safe zones (nav bar, notch)
         child: isLoading
             ? const Center(child: CircularProgressIndicator())
             : cartItems.isEmpty
@@ -207,7 +246,7 @@ class _CartScreenState extends State<CartScreen> {
                         ),
                       ),
                       Padding(
-                        padding: const EdgeInsets.all(16.0).copyWith(bottom: 32.0),  // Extra bottom space for nav bar
+                        padding: const EdgeInsets.all(16.0).copyWith(bottom: 32.0), // Extra bottom space for nav bar
                         child: Column(
                           children: [
                             Text('Subtotal: \$${subtotal.toStringAsFixed(2)}', style: Theme.of(context).textTheme.titleLarge),
@@ -227,7 +266,7 @@ class _CartScreenState extends State<CartScreen> {
                   ),
       ),
       floatingActionButton: FloatingActionButton(
-        onPressed: _loadCart,  // Manual refresh
+        onPressed: _loadCart, // Manual refresh
         backgroundColor: const Color(0xFF32CD32),
         child: const Icon(Icons.refresh),
       ),

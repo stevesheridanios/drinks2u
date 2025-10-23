@@ -117,11 +117,25 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
               style: const TextStyle(fontSize: 16, color: Colors.green),
             ),
             const SizedBox(height: 8),
-            // Description
-            Text(
-              widget.product.description,
-              style: Theme.of(context).textTheme.bodyMedium,
-            ),
+            // Description (from products table, with label for clarity)
+            if (widget.product.description.isNotEmpty)
+              Padding(
+                padding: const EdgeInsets.only(top: 8.0, bottom: 8.0),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Description:',
+                      style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      widget.product.description,
+                      style: Theme.of(context).textTheme.bodyMedium,
+                    ),
+                  ],
+                ),
+              ),
             const SizedBox(height: 16),
             // Carton Toggle
             Row(

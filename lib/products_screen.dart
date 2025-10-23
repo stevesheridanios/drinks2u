@@ -322,7 +322,7 @@ class _ProductsScreenState extends State<ProductsScreen> {
                                       : CircleAvatar(child: Text(product.name.isNotEmpty ? product.name[0].toUpperCase() : '?')),
                                   title: Text(product.name),
                                   subtitle: Text(
-                                    '${product.description}\n\$${product.price.toStringAsFixed(2)}',
+                                    '\$${product.price.toStringAsFixed(2)}',  // Price only, no description
                                   ),
                                   trailing: ElevatedButton(
                                     onPressed: () => _addToCart(product), // Quick add single

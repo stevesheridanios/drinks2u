@@ -17,7 +17,38 @@ class AccountScreen extends StatefulWidget {
 class _AccountScreenState extends State<AccountScreen> {
   Map<String, dynamic>? _userData;
   List<String> _orderHistory = [];
-  bool _isProfileLoading = false; // Separate from auth loading
+  bool _isProfileLoading = true; // Start true to show spinner
+  StreamSubscription<User?>? _authSubscription; // For manual listen
+
+  @override
+  void initState() {
+    super.initState();
+    _listenToAuthChanges(); // Proactive listener
+  }
+
+  @override
+  void dispose() {
+    _authSubscription?.cancel();
+    super.dispose();
+  }
+
+  // Proactive listener to catch user emission immediately
+  void _listenToAuthChanges() {
+    _authSubscription = FirebaseAuth.instance.authStateChanges().listen((User? user) {
+      print('=== DEBUG: Auth listener emitted user: ${user?.uid ?? "null"} ==='); // Debug
+      if (user != null && _userData == null && mounted) {
+        _loadProfile(user);
+      } else if (user == null && mounted) {
+        // Redirect if unauth
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          Navigator.pushReplacement(
+            context,
+            MaterialPageRoute(builder: (context) => const LoginScreen()),
+          );
+        });
+      }
+    });
+  }
 
   // Robust recursive Timestamp converter for JSON encoding
   Map<String, dynamic> _convertTimestamps(Map<String, dynamic> data) {
@@ -46,38 +77,54 @@ class _AccountScreenState extends State<AccountScreen> {
 
   Future<void> _loadProfile(User user) async {
     if (!mounted) return;
+    print('=== DEBUG: Starting _loadProfile for UID: ${user.uid} ===');
+    print('=== DEBUG: CurrentUser in load: ${FirebaseAuth.instance.currentUser?.uid} ==='); // Debug
+
     setState(() => _isProfileLoading = true);
-    print('Starting profile load for user: ${user.uid}'); // Debug
 
     try {
       final prefs = await SharedPreferences.getInstance();
       final userDataStr = prefs.getString('user_data');
       final orderHistory = prefs.getStringList('order_history') ?? [];
 
-      // Fetch from Firestore with 5s timeout
-      final completer = Completer<Map<String, dynamic>?>();
-      final timer = Timer(const Duration(seconds: 5), () {
-        if (!completer.isCompleted) {
-          print('Firestore fetch timed out - falling back to prefs'); // Debug
-          completer.complete(null);
+      // Quick fallback if prefs has data (bypass Firestore for speed)
+      if (userDataStr != null) {
+        try {
+          final prefsData = json.decode(userDataStr) as Map<String, dynamic>;
+          if (prefsData['email'] != null) {
+            print('=== DEBUG: Loaded from prefs fallback ===');
+            if (mounted) {
+              setState(() {
+                _userData = prefsData;
+                _orderHistory = orderHistory;
+                _isProfileLoading = false;
+              });
+            }
+            return; // Success - skip Firestore
+          }
+        } catch (decodeErr) {
+          print('=== DEBUG: Prefs decode failed: $decodeErr ===');
         }
-      });
+      }
 
+      // Firestore fetch with longer timeout (10s for Android)
       final userDoc = await FirebaseFirestore.instance
           .collection('users')
           .doc(user.uid)
           .get()
-          .timeout(const Duration(seconds: 5), onTimeout: () => throw TimeoutException('Firestore timeout', const Duration(seconds: 5)));
+          .timeout(const Duration(seconds: 10), onTimeout: () {
+            print('=== DEBUG: Firestore timeout - using prefs ===');
+            throw TimeoutException('Firestore timeout', const Duration(seconds: 10));
+          });
 
-      timer.cancel();
-      print('Firestore fetch complete'); // Debug
+      print('=== DEBUG: Firestore fetch complete ===');
 
       if (userDoc.exists) {
         final freshData = userDoc.data() as Map<String, dynamic>;
         final convertedData = _convertTimestamps(freshData);
-        print('Timestamp conversion complete - keys: ${convertedData.keys.toList()}'); // Debug
+        print('=== DEBUG: Timestamp conversion complete - keys: ${convertedData.keys.toList()} ===');
         
-        await prefs.setString('user_data', json.encode(convertedData)); // Update prefs safely
+        await prefs.setString('user_data', json.encode(convertedData));
         if (mounted) {
           setState(() {
             _userData = convertedData;
@@ -86,31 +133,40 @@ class _AccountScreenState extends State<AccountScreen> {
           });
         }
       } else {
-        // Fallback to prefs
-        print('No Firestore doc - using prefs fallback'); // Debug
+        // Ultimate fallback
+        print('=== DEBUG: No Firestore doc - empty profile ===');
         if (mounted) {
           setState(() {
-            _userData = userDataStr != null ? json.decode(userDataStr) as Map<String, dynamic> : null;
+            _userData = null;
             _orderHistory = orderHistory;
             _isProfileLoading = false;
           });
         }
       }
     } catch (e) {
-      print('Error loading profile: $e'); // Debug
+      print('=== DEBUG: Error loading profile: $e ===');
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Failed to load profile: $e')),
+          SnackBar(content: Text('Profile load failed: $e - Using cached data')),
         );
-        // Fallback to prefs on error
+        // Force prefs fallback
         final prefs = await SharedPreferences.getInstance();
         final userDataStr = prefs.getString('user_data');
         final orderHistory = prefs.getStringList('order_history') ?? [];
-        setState(() {
-          _userData = userDataStr != null ? json.decode(userDataStr) as Map<String, dynamic> : null;
-          _orderHistory = orderHistory;
-          _isProfileLoading = false;
-        });
+        if (userDataStr != null) {
+          try {
+            final fallbackData = json.decode(userDataStr) as Map<String, dynamic>;
+            setState(() {
+              _userData = fallbackData;
+              _orderHistory = orderHistory;
+              _isProfileLoading = false;
+            });
+          } catch (_) {
+            setState(() => _isProfileLoading = false);
+          }
+        } else {
+          setState(() => _isProfileLoading = false);
+        }
       }
     }
   }
@@ -147,8 +203,10 @@ class _AccountScreenState extends State<AccountScreen> {
     return StreamBuilder<User?>(
       stream: FirebaseAuth.instance.authStateChanges(),
       builder: (context, snapshot) {
-        if (snapshot.connectionState == ConnectionState.waiting) {
-          print('Auth stream waiting...'); // Debug
+        print('=== DEBUG: Stream snapshot: ${snapshot.connectionState}, User: ${snapshot.data?.uid ?? "null"} ==='); // Debug
+
+        if (snapshot.connectionState == ConnectionState.waiting || _isProfileLoading) {
+          print('=== DEBUG: Showing spinner (state: ${snapshot.connectionState}, loading: $_isProfileLoading) ===');
           return const Scaffold(
             body: Center(child: CircularProgressIndicator()),
           );
@@ -156,8 +214,7 @@ class _AccountScreenState extends State<AccountScreen> {
 
         final user = snapshot.data;
         if (user == null) {
-          print('No authenticated user - redirecting to login'); // Debug
-          // Auto-redirect to login
+          print('=== DEBUG: No authenticated user - redirecting to login ===');
           WidgetsBinding.instance.addPostFrameCallback((_) {
             if (mounted) {
               Navigator.pushReplacement(
@@ -171,35 +228,16 @@ class _AccountScreenState extends State<AccountScreen> {
           );
         }
 
-        print('Auth stream confirmed user: ${user.uid}'); // Debug
-        if (_userData == null && !_isProfileLoading) {
-          // Trigger load on first confirmed user
+        // If user exists but no data yet, trigger load (safety net)
+        if (_userData == null) {
+          print('=== DEBUG: User exists but no data - triggering load ===');
           _loadProfile(user);
-        }
-
-        if (_isProfileLoading) {
           return const Scaffold(
             body: Center(child: CircularProgressIndicator()),
           );
         }
 
-        if (_userData == null) {
-          return Scaffold(
-            appBar: AppBar(
-              title: const Text('Account'),
-              backgroundColor: const Color(0xFF32CD32),
-            ),
-            body: const Center(
-              child: Text('No profile data. Please log in again.'),
-            ),
-            floatingActionButton: FloatingActionButton(
-              onPressed: _logout,
-              backgroundColor: Colors.red,
-              child: const Icon(Icons.logout),
-            ),
-          );
-        }
-
+        // Loaded state
         final isBusiness = _userData!['account_type'] == 'business';
         final fullAddress = '${_userData!['streetAddress'] ?? ''}, ${_userData!['location'] ?? ''}';
         return Scaffold(
@@ -307,10 +345,5 @@ class _AccountScreenState extends State<AccountScreen> {
         const SnackBar(content: Text('Order removed from history')),
       );
     }
-  }
-
-  @override
-  void dispose() {
-    super.dispose();
   }
 }

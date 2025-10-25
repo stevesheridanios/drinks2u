@@ -2,7 +2,7 @@ name: danfels
 description: "Danfels drinks app with categories, cart, and orders."
 publish_to: 'none'
 
-version: 1.7.0+1  # Bumped for latest changes
+version: 1.8.0+1  # Bumped for latest changes
 
 environment:
   sdk: ^3.9.2
@@ -14,7 +14,7 @@ dependencies:
   http: ^1.2.1  # Backend JSON fetch (optional with Firestore)
   mailer: ^6.1.0  # Email orders (SMTP)
   firebase_core: ^3.6.0  # Firebase base
-  firebase_auth: ^5.3.1  # Auth for login
+  firebase_auth: ^5.4.2  # Auth for login
   cloud_firestore: ^5.4.4  # Database for products/orders
   cupertino_icons: ^1.0.8
   package_info_plus: ^4.2.0  # Or latest

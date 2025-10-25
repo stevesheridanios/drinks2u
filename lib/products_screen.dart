@@ -2,25 +2,22 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart' show rootBundle;
 import 'package:flutter/foundation.dart'; // For kDebugMode
 import 'dart:convert';
+import 'package:shared_preferences/shared_preferences.dart'; // For pricing mode
 import '../models/product.dart';
 import '../cart_manager.dart';
 import 'screens/product_detail_screen.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-
 class ProductsScreen extends StatefulWidget {
   const ProductsScreen({super.key});
-
   @override
   State<ProductsScreen> createState() => _ProductsScreenState();
 }
-
 class _ProductsScreenState extends State<ProductsScreen> {
   List<Product> allProducts = [];
   List<Product> filteredProducts = [];
   String selectedCategory = 'Aloe Vera'; // Default to Aloe Vera
   bool isLoading = true; // Track loading state explicitly
   bool _isLoaded = false; // Prevent double-loading
-
   // Your 9 categories + 'All' for filtering (matched to hardcoded keys)
   List<String> categories = [
     'All',
@@ -34,7 +31,6 @@ class _ProductsScreenState extends State<ProductsScreen> {
     'Soft Drink',
     'Water',
   ];
-
   @override
   void initState() {
     super.initState();
@@ -43,7 +39,6 @@ class _ProductsScreenState extends State<ProductsScreen> {
       _isLoaded = true;
     }
   }
-
   Future<void> loadProducts() async {
     setState(() => isLoading = true); // Always show spinner for refresh
     _isLoaded = false; // Reset for refresh (allows re-load)
@@ -68,13 +63,12 @@ class _ProductsScreenState extends State<ProductsScreen> {
           'initialSupplier': mapData['initialSupplier'] ?? '',
           'sellByUnit': mapData['sellByUnit'] ?? false,
           'sellByCarton': mapData['sellByCarton'] ?? false,
-          'regional': int.tryParse(mapData['regional']?.toString() ?? '0') ?? 0,
+          'regional': double.tryParse(mapData['regional']?.toString() ?? '0') ?? 0.0, // Fixed: double for price
           'archive': mapData['archive'] ?? false,
           'image': mapData['image'] ?? '',
         };
       }).toList();
-
-      // Debug: Log first 3 items (remove after testing)
+            // Debug: Log first 3 items (remove after testing)
       for (int i = 0; i < data.length && i < 3; i++) {
         final item = data[i];
         print('Item $i debug:');
@@ -85,10 +79,11 @@ class _ProductsScreenState extends State<ProductsScreen> {
       }
       print('Mapped ${data.length} items from Firestore'); // Debug: Parsed count
       if (mounted) {
+        allProducts = []; // Clear to prevent duplication
+        allProducts = data.map((json) => Product.fromJson(json)).toList(); // Sanitization happens in fromJson
+        await _applyPricing(allProducts); // Apply dynamic pricing
+        filteredProducts = allProducts.where((p) => p.category == selectedCategory).toList(); // Default filter to Aloe Vera
         setState(() {
-          allProducts = []; // Clear to prevent duplication
-          allProducts = data.map((json) => Product.fromJson(json)).toList(); // Sanitization happens in fromJson
-          filteredProducts = allProducts.where((p) => p.category == selectedCategory).toList(); // Default filter to Aloe Vera
           isLoading = false;
           _isLoaded = true; // Re-set after successful load
           print('SetState: Loaded ${allProducts.length} products from Firestore, filtered to ${filteredProducts.length}'); // Debug: Post-set-state
@@ -103,18 +98,19 @@ class _ProductsScreenState extends State<ProductsScreen> {
         final List<dynamic> jsonData = json.decode(response);
         print('Parsed ${jsonData.length} items from JSON'); // Debug: Parsed count
         if (mounted) {
+          allProducts = []; // Clear to prevent duplication
+          allProducts = jsonData.map((json) => Product.fromJson(json)).toList(); // Sanitization happens in fromJson
+          await _applyPricing(allProducts); // Apply dynamic pricing
+          filteredProducts = allProducts.where((p) => p.category == selectedCategory).toList(); // Default filter to Aloe Vera
           setState(() {
-            allProducts = []; // Clear to prevent duplication
-            allProducts = jsonData.map((json) => Product.fromJson(json)).toList(); // Sanitization happens in fromJson
-            filteredProducts = allProducts.where((p) => p.category == selectedCategory).toList(); // Default filter to Aloe Vera
             isLoading = false;
             _isLoaded = true; // Re-set after fallback
             print('SetState: Loaded ${allProducts.length} products from JSON fallback, filtered to ${filteredProducts.length}'); // Debug: Post-set-state
           });
         }
-      } catch (jsonError) {
+            } catch (jsonError) {
         print('JSON fallback failed: $jsonError'); // Debug: JSON error
-        _loadHardcodedProducts(); // Final fallback only on failure
+        await _loadHardcodedProducts(); // Final fallback only on failure
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(content: Text('Error loading products from Firestore and JSON: $e. Using hardcoded fallback.')), // Updated message
@@ -123,8 +119,7 @@ class _ProductsScreenState extends State<ProductsScreen> {
       }
     }
   }
-
-  void _loadHardcodedProducts() {
+  Future<void> _loadHardcodedProducts() async {
     if (_isLoaded) return; // Prevent double fallback
     print('Loading fallback hardcoded products...'); // Debug: Fallback start
     List<Product> fallback = [];
@@ -134,24 +129,33 @@ class _ProductsScreenState extends State<ProductsScreen> {
           id: fallback.length + 1, // Simple incremental ID
           name: item['name'],
           category: category,
-          price: item['price'],
+          metro: item['price'] ?? 0.0, // Assume same for fallback (customize if needed)
+          regional: item['price'] ?? 0.0,
+          cost: item['price'] ?? 0.0, // Map to cost
           image: item['image'] as String?, // Explicit nullable cast
           description: '${item['name']} - A refreshing drink.', // Placeholder
         ));
       }
     });
     if (mounted) {
+      allProducts = []; // Clear to prevent duplication
+      allProducts = fallback;
+      await _applyPricing(allProducts); // Apply pricing to fallback too
+      filteredProducts = allProducts.where((p) => p.category == selectedCategory).toList(); // Default filter to Aloe Vera
       setState(() {
-        allProducts = []; // Clear to prevent duplication
-        allProducts = fallback;
-        filteredProducts = allProducts.where((p) => p.category == selectedCategory).toList(); // Default filter to Aloe Vera
         isLoading = false;
         _isLoaded = true;
         print('Fallback: Loaded ${allProducts.length} products from hardcoded, filtered to ${filteredProducts.length}'); // Debug: Post-set-state
       });
     }
   }
-
+  Future<void> _applyPricing(List<Product> products) async {
+    final prefs = await SharedPreferences.getInstance();
+    final String mode = prefs.getString('pricingMode') ?? 'regional';
+    for (final product in products) {
+      product.price = mode == 'metro' ? product.metro : product.regional;
+    }
+  }
   void filterProducts(String category) {
     setState(() {
       selectedCategory = category;
@@ -163,7 +167,6 @@ class _ProductsScreenState extends State<ProductsScreen> {
       print('Filtered to ${filteredProducts.length} products for $category'); // Debug: Filter result
     });
   }
-
   Future<void> _addToCart(Product product) async {
     try {
       await CartManager.addToCart(product);
@@ -180,7 +183,6 @@ class _ProductsScreenState extends State<ProductsScreen> {
       }
     }
   }
-
   // Keep your hardcoded map here temporarily for fallback
   Map<String, List<Map<String, dynamic>>> productsByCategory = {
     'Aloe Vera': [
@@ -191,48 +193,47 @@ class _ProductsScreenState extends State<ProductsScreen> {
       {'name': 'Aloe Vera Watermelon', 'price': 3.25, 'image': 'assets/images/aloe_watermelon.png'},
     ],
     'Coconut Water': [
-      {'name': 'Coconut Water Original', 'price': 2.50, 'image': 'assets/images/coconut_original.png'},
-      {'name': 'Coconut Water Mango', 'price': 3.00, 'image': null},
-    ],
-    'Energy Drink': [
-      {'name': 'Energy Boost', 'price': 4.00, 'image': null},
-    ],
-    'Flavoured Milk': [
-      {'name': 'Chocolate Milk', 'price': 2.00, 'image': null},
-    ],
-    'Fruit Juice': [
-      {'name': 'Orange Juice', 'price': 2.75, 'image': null},
-    ],
-    'Iced Tea': [
-      {'name': 'Lemon Iced Tea', 'price': 2.25, 'image': null},
-    ],
-    'Mineral Water': [
-      {'name': 'Sparkling Water', 'price': 1.50, 'image': null},
-    ],
-    'Soft Drink': [
-      {'name': 'Cola', 'price': 2.00, 'image': null},
-    ],
-    'Water': [
-      {'name': 'Pure Water', 'price': 1.00, 'image': null},
-    ],
-  };
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('Products'),
-        backgroundColor: const Color(0xFF32CD32), // Lime green
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.refresh, color: Colors.white), // White icon for contrast
-            onPressed: loadProducts, // Calls your Firestore reload method
-            tooltip: 'Refresh Products', // Accessibility hint
-          ),
-        ],
-      ),
-      body: Column(
-        children: [
+{'name': 'Coconut Water Original', 'price': 2.50, 'image': 'assets/images/coconut_original.png'},
+{'name': 'Coconut Water Mango', 'price': 3.00, 'image': null},
+],
+'Energy Drink': [
+{'name': 'Energy Boost', 'price': 4.00, 'image': null},
+],
+'Flavoured Milk': [
+{'name': 'Chocolate Milk', 'price': 2.00, 'image': null},
+],
+'Fruit Juice': [
+{'name': 'Orange Juice', 'price': 2.75, 'image': null},
+],
+'Iced Tea': [
+{'name': 'Lemon Iced Tea', 'price': 2.25, 'image': null},
+],
+'Mineral Water': [
+{'name': 'Sparkling Water', 'price': 1.50, 'image': null},
+],
+'Soft Drink': [
+{'name': 'Cola', 'price': 2.00, 'image': null},
+],
+'Water': [
+{'name': 'Pure Water', 'price': 1.00, 'image': null},
+],
+};
+@override
+Widget build(BuildContext context) {
+return Scaffold(
+appBar: AppBar(
+title: const Text('Products'),
+backgroundColor: const Color(0xFF32CD32), // Lime green
+actions: [
+IconButton(
+icon: const Icon(Icons.refresh, color: Colors.white), // White icon for contrast
+onPressed: loadProducts, // Calls your Firestore reload method
+tooltip: 'Refresh Products', // Accessibility hint
+),
+],
+),
+body: Column(
+children: [
           // Dropdown for categories
           Padding(
             padding: const EdgeInsets.all(16.0),
@@ -322,7 +323,7 @@ class _ProductsScreenState extends State<ProductsScreen> {
                                       : CircleAvatar(child: Text(product.name.isNotEmpty ? product.name[0].toUpperCase() : '?')),
                                   title: Text(product.name),
                                   subtitle: Text(
-                                    '\$${product.price.toStringAsFixed(2)}',  // Price only, no description
+                                    '\$${product.price.toStringAsFixed(2)}', // Price only, no description
                                   ),
                                   trailing: ElevatedButton(
                                     onPressed: () => _addToCart(product), // Quick add single

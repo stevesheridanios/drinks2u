@@ -7,7 +7,7 @@ class Product {
   final double regional; // Regional customer price
   final double cost; // Supplier cost (for internal use)
   final String? image; // Nullable: Handles null for products without images
-  final String description;
+  final String description; // Final: Preserved in clones
 
   Product({
     required this.id,
@@ -48,15 +48,34 @@ class Product {
         sanitizedImage = pathPrefix + filename;
       }
     }
+
+    final desc = json['description'] ?? ''; // Safe default
+    print('Product.fromJson for ${json['name'] ?? 'Unnamed'}: description="$desc"'); // Debug: Log on creation
+
     return Product(
       id: int.tryParse(json['id']?.toString() ?? '0') ?? 0,
       name: json['name'] ?? '',
       category: json['category'] ?? '',
       metro: double.tryParse(json['metro']?.toString() ?? '0') ?? 0.0,
       regional: double.tryParse(json['regional']?.toString() ?? '0') ?? 0.0,
-      cost: double.tryParse(json['price']?.toString() ?? '0') ?? 0.0, // Map old 'price' to cost
+      cost: double.tryParse(json['cost']?.toString() ?? json['price']?.toString() ?? '0') ?? 0.0, // Prefer 'cost', fallback to 'price'
       image: sanitizedImage,
-      description: json['description'] ?? '',
+      description: desc,
     );
+  }
+
+  // toJson if needed for cart/save (e.g., order export)
+  Map<String, dynamic> toJson() {
+    return {
+      'id': id,
+      'name': name,
+      'category': category,
+      'metro': metro,
+      'regional': regional,
+      'cost': cost,
+      'price': price, // Current price (post-mode)
+      'image': image,
+      'description': description,
+    };
   }
 }

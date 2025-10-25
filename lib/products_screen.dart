@@ -2,22 +2,27 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart' show rootBundle;
 import 'package:flutter/foundation.dart'; // For kDebugMode
 import 'dart:convert';
+import 'dart:math'; // For min()
 import 'package:shared_preferences/shared_preferences.dart'; // For pricing mode
 import '../models/product.dart';
 import '../cart_manager.dart';
 import 'screens/product_detail_screen.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+
 class ProductsScreen extends StatefulWidget {
   const ProductsScreen({super.key});
+
   @override
   State<ProductsScreen> createState() => _ProductsScreenState();
 }
+
 class _ProductsScreenState extends State<ProductsScreen> {
   List<Product> allProducts = [];
   List<Product> filteredProducts = [];
   String selectedCategory = 'Aloe Vera'; // Default to Aloe Vera
   bool isLoading = true; // Track loading state explicitly
   bool _isLoaded = false; // Prevent double-loading
+
   // Your 9 categories + 'All' for filtering (matched to hardcoded keys)
   List<String> categories = [
     'All',
@@ -31,6 +36,7 @@ class _ProductsScreenState extends State<ProductsScreen> {
     'Soft Drink',
     'Water',
   ];
+
   @override
   void initState() {
     super.initState();
@@ -39,6 +45,7 @@ class _ProductsScreenState extends State<ProductsScreen> {
       _isLoaded = true;
     }
   }
+
   Future<void> loadProducts() async {
     setState(() => isLoading = true); // Always show spinner for refresh
     _isLoaded = false; // Reset for refresh (allows re-load)
@@ -46,13 +53,16 @@ class _ProductsScreenState extends State<ProductsScreen> {
     try {
       final snapshot = await FirebaseFirestore.instance.collection('products').get();
       print('Firestore snapshot docs: ${snapshot.docs.length}'); // Debug: Fetched count
-      final List<dynamic> data = snapshot.docs.map((doc) {
+      final List<dynamic> data = [];
+      for (var doc in snapshot.docs) { // For loop for per-doc trace
         final mapData = doc.data();
-        return {
+        final rawDesc = mapData['description']; // Raw before default
+        final mappedDesc = rawDesc ?? ''; // After default
+        final mappedItem = {
           'id': doc.id,
           'sku': mapData['sku'] ?? '',
           'name': mapData['name'] ?? '',
-          'description': mapData['description'] ?? '',
+          'description': mappedDesc, // Use mapped
           'storageLocation': mapData['storageLocation'] ?? '',
           'category': mapData['category'] ?? '',
           'metro': double.tryParse(mapData['metro']?.toString() ?? '0') ?? 0.0,
@@ -63,12 +73,30 @@ class _ProductsScreenState extends State<ProductsScreen> {
           'initialSupplier': mapData['initialSupplier'] ?? '',
           'sellByUnit': mapData['sellByUnit'] ?? false,
           'sellByCarton': mapData['sellByCarton'] ?? false,
-          'regional': double.tryParse(mapData['regional']?.toString() ?? '0') ?? 0.0, // Fixed: double for price
+          'regional': double.tryParse(mapData['regional']?.toString() ?? '0') ?? 0.0,
           'archive': mapData['archive'] ?? false,
           'image': mapData['image'] ?? '',
         };
-      }).toList();
-            // Debug: Log first 3 items (remove after testing)
+        data.add(mappedItem);
+
+        // Per-doc debug: Raw vs mapped, especially for Nippys
+        if (kDebugMode) {
+          final name = mapData['name'] ?? 'Unnamed';
+          print('Firestore doc ${doc.id} (name: $name): raw description = "$rawDesc" (type: ${rawDesc.runtimeType}), mapped = "$mappedDesc"');
+          if (name.toLowerCase().contains('nippys')) {
+            print('*** NIPPYS TRACE: Doc $doc.id full raw data keys: ${mapData.keys.toList()}'); // Keys list for mismatch
+          }
+        }
+      }
+
+      // Temp diagnostic: Find Nippys and log full item
+      final nippysItem = data.firstWhere((item) => (item['name'] as String).contains('Nippys'), orElse: () => null);
+      if (nippysItem != null) {
+        print('*** NIPPYS FULL MAPPED ITEM: $nippysItem');
+        print('*** NIPPYS DESCRIPTION FROM MAPPED: "${nippysItem['description']}"');
+      }
+
+      // Debug: Log first 3 items (remove after testing)
       for (int i = 0; i < data.length && i < 3; i++) {
         final item = data[i];
         print('Item $i debug:');
@@ -76,13 +104,14 @@ class _ProductsScreenState extends State<ProductsScreen> {
         print(' cartonQty: ${item['cartonQty']} (type: ${item['cartonQty'].runtimeType})');
         print(' regional: ${item['regional']} (type: ${item['regional'].runtimeType})');
         print(' price: ${item['price']} (type: ${item['price'].runtimeType})');
+        print(' description: "${item['description']}" (type: ${item['description'].runtimeType})'); // Added debug for description
       }
       print('Mapped ${data.length} items from Firestore'); // Debug: Parsed count
       if (mounted) {
         allProducts = []; // Clear to prevent duplication
         allProducts = data.map((json) => Product.fromJson(json)).toList(); // Sanitization happens in fromJson
         await _applyPricing(allProducts); // Apply dynamic pricing
-        filteredProducts = allProducts.where((p) => p.category == selectedCategory).toList(); // Default filter to Aloe Vera
+        filteredProducts = allProducts.where((p) => p.category == selectedCategory || selectedCategory == 'All').toList(); // Fixed filter for 'All'
         setState(() {
           isLoading = false;
           _isLoaded = true; // Re-set after successful load
@@ -101,14 +130,14 @@ class _ProductsScreenState extends State<ProductsScreen> {
           allProducts = []; // Clear to prevent duplication
           allProducts = jsonData.map((json) => Product.fromJson(json)).toList(); // Sanitization happens in fromJson
           await _applyPricing(allProducts); // Apply dynamic pricing
-          filteredProducts = allProducts.where((p) => p.category == selectedCategory).toList(); // Default filter to Aloe Vera
+          filteredProducts = allProducts.where((p) => p.category == selectedCategory || selectedCategory == 'All').toList(); // Fixed filter for 'All'
           setState(() {
             isLoading = false;
             _isLoaded = true; // Re-set after fallback
             print('SetState: Loaded ${allProducts.length} products from JSON fallback, filtered to ${filteredProducts.length}'); // Debug: Post-set-state
           });
         }
-            } catch (jsonError) {
+      } catch (jsonError) {
         print('JSON fallback failed: $jsonError'); // Debug: JSON error
         await _loadHardcodedProducts(); // Final fallback only on failure
         if (mounted) {
@@ -119,6 +148,7 @@ class _ProductsScreenState extends State<ProductsScreen> {
       }
     }
   }
+
   Future<void> _loadHardcodedProducts() async {
     if (_isLoaded) return; // Prevent double fallback
     print('Loading fallback hardcoded products...'); // Debug: Fallback start
@@ -127,13 +157,13 @@ class _ProductsScreenState extends State<ProductsScreen> {
       for (var item in items) {
         fallback.add(Product(
           id: fallback.length + 1, // Simple incremental ID
-          name: item['name'],
+          name: item['name'] ?? 'Unnamed',
           category: category,
           metro: item['price'] ?? 0.0, // Assume same for fallback (customize if needed)
           regional: item['price'] ?? 0.0,
           cost: item['price'] ?? 0.0, // Map to cost
-          image: item['image'] as String?, // Explicit nullable cast
-          description: '${item['name']} - A refreshing drink.', // Placeholder
+          image: item['image'] as String?,
+          description: item['description'] ?? '${item['name']} - A refreshing drink.', // Ensure description (add to map if missing)
         ));
       }
     });
@@ -141,7 +171,7 @@ class _ProductsScreenState extends State<ProductsScreen> {
       allProducts = []; // Clear to prevent duplication
       allProducts = fallback;
       await _applyPricing(allProducts); // Apply pricing to fallback too
-      filteredProducts = allProducts.where((p) => p.category == selectedCategory).toList(); // Default filter to Aloe Vera
+      filteredProducts = allProducts.where((p) => p.category == selectedCategory || selectedCategory == 'All').toList(); // Fixed filter for 'All'
       setState(() {
         isLoading = false;
         _isLoaded = true;
@@ -149,13 +179,16 @@ class _ProductsScreenState extends State<ProductsScreen> {
       });
     }
   }
+
   Future<void> _applyPricing(List<Product> products) async {
     final prefs = await SharedPreferences.getInstance();
     final String mode = prefs.getString('pricingMode') ?? 'regional';
     for (final product in products) {
       product.price = mode == 'metro' ? product.metro : product.regional;
+      print('Applied pricing for ${product.name}: $mode - New price: \$${product.price} (description preserved: "${product.description}")'); // Debug: Confirm description survives pricing
     }
   }
+
   void filterProducts(String category) {
     setState(() {
       selectedCategory = category;
@@ -167,6 +200,7 @@ class _ProductsScreenState extends State<ProductsScreen> {
       print('Filtered to ${filteredProducts.length} products for $category'); // Debug: Filter result
     });
   }
+
   Future<void> _addToCart(Product product) async {
     try {
       await CartManager.addToCart(product);
@@ -183,57 +217,59 @@ class _ProductsScreenState extends State<ProductsScreen> {
       }
     }
   }
-  // Keep your hardcoded map here temporarily for fallback
+
+  // Keep your hardcoded map here temporarily for fallback – Added descriptions
   Map<String, List<Map<String, dynamic>>> productsByCategory = {
     'Aloe Vera': [
-      {'name': 'Aloe Vera Lychee', 'price': 3.25, 'image': 'assets/images/aloe_lychee.png'},
-      {'name': 'Aloe Vera Mango', 'price': 3.50, 'image': 'assets/images/aloe_mango.png'},
-      {'name': 'Aloe Vera Original', 'price': 2.75, 'image': 'assets/images/aloe_original.png'},
-      {'name': 'Aloe Vera Peach', 'price': 3.00, 'image': 'assets/images/aloe_peach.png'},
-      {'name': 'Aloe Vera Watermelon', 'price': 3.25, 'image': 'assets/images/aloe_watermelon.png'},
+      {'name': 'Aloe Vera Lychee', 'price': 3.25, 'image': 'assets/images/aloe_lychee.png', 'description': 'Refreshing aloe vera with lychee flavor.'},
+      {'name': 'Aloe Vera Mango', 'price': 3.50, 'image': 'assets/images/aloe_mango.png', 'description': 'Tropical mango-infused aloe vera drink.'},
+      {'name': 'Aloe Vera Original', 'price': 2.75, 'image': 'assets/images/aloe_original.png', 'description': 'Pure aloe vera for hydration.'},
+      {'name': 'Aloe Vera Peach', 'price': 3.00, 'image': 'assets/images/aloe_peach.png', 'description': 'Sweet peach aloe vera blend.'},
+      {'name': 'Aloe Vera Watermelon', 'price': 3.25, 'image': 'assets/images/aloe_watermelon.png', 'description': 'Juicy watermelon aloe vera.'},
     ],
     'Coconut Water': [
-{'name': 'Coconut Water Original', 'price': 2.50, 'image': 'assets/images/coconut_original.png'},
-{'name': 'Coconut Water Mango', 'price': 3.00, 'image': null},
-],
-'Energy Drink': [
-{'name': 'Energy Boost', 'price': 4.00, 'image': null},
-],
-'Flavoured Milk': [
-{'name': 'Chocolate Milk', 'price': 2.00, 'image': null},
-],
-'Fruit Juice': [
-{'name': 'Orange Juice', 'price': 2.75, 'image': null},
-],
-'Iced Tea': [
-{'name': 'Lemon Iced Tea', 'price': 2.25, 'image': null},
-],
-'Mineral Water': [
-{'name': 'Sparkling Water', 'price': 1.50, 'image': null},
-],
-'Soft Drink': [
-{'name': 'Cola', 'price': 2.00, 'image': null},
-],
-'Water': [
-{'name': 'Pure Water', 'price': 1.00, 'image': null},
-],
-};
-@override
-Widget build(BuildContext context) {
-return Scaffold(
-appBar: AppBar(
-title: const Text('Products'),
-backgroundColor: const Color(0xFF32CD32), // Lime green
-actions: [
-IconButton(
-icon: const Icon(Icons.refresh, color: Colors.white), // White icon for contrast
-onPressed: loadProducts, // Calls your Firestore reload method
-tooltip: 'Refresh Products', // Accessibility hint
-),
-],
-),
-body: Column(
-children: [
+      {'name': 'Coconut Water Original', 'price': 2.50, 'image': 'assets/images/coconut_original.png', 'description': 'Natural coconut water for electrolytes.'},
+      {'name': 'Coconut Water Mango', 'price': 3.00, 'image': null, 'description': 'Mango-flavored coconut water.'},
+    ],
+    'Energy Drink': [
+      {'name': 'Energy Boost', 'price': 4.00, 'image': null, 'description': 'High-energy boost with vitamins.'},
+    ],
+    'Flavoured Milk': [
+      {'name': 'Chocolate Milk', 'price': 2.00, 'image': null, 'description': 'Creamy chocolate milk.'},
+    ],
+    'Fruit Juice': [
+      {'name': 'Orange Juice', 'price': 2.75, 'image': null, 'description': 'Fresh squeezed orange juice.'},
+    ],
+    'Iced Tea': [
+      {'name': 'Lemon Iced Tea', 'price': 2.25, 'image': null, 'description': 'Refreshing lemon iced tea.'},
+    ],
+    'Mineral Water': [
+      {'name': 'Sparkling Water', 'price': 1.50, 'image': null, 'description': 'Bubbly mineral water.'},
+    ],
+    'Soft Drink': [
+      {'name': 'Cola', 'price': 2.00, 'image': null, 'description': 'Classic cola taste.'},
+    ],
+    'Water': [
+      {'name': 'Pure Water', 'price': 1.00, 'image': null, 'description': 'Pure filtered water.'},
+    ],
+  };
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('Products'),
+        backgroundColor: const Color(0xFF32CD32), // Lime green
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.refresh, color: Colors.white), // White icon for contrast
+            onPressed: loadProducts, // Calls your Firestore reload method
+            tooltip: 'Refresh Products', // Accessibility hint
+          ),
+        ],
+      ),
+      body: Column(
+        children: [
           // Dropdown for categories
           Padding(
             padding: const EdgeInsets.all(16.0),
@@ -276,6 +312,8 @@ children: [
                               // Debug print for image type detection
                               if (kDebugMode) {
                                 print('Debug: ${product.name} image="${product.image}" startsWith http: ${product.image?.startsWith("http") ?? false}');
+                                final previewLength = min(50, product.description.length);
+                                print('Debug: ${product.name} description preview: "${product.description.substring(0, previewLength)}..." (full length: ${product.description.length})'); // Safe substring with min + length
                               }
                               return Card(
                                 margin: const EdgeInsets.all(8.0),
@@ -322,8 +360,22 @@ children: [
                                             ))
                                       : CircleAvatar(child: Text(product.name.isNotEmpty ? product.name[0].toUpperCase() : '?')),
                                   title: Text(product.name),
-                                  subtitle: Text(
-                                    '\$${product.price.toStringAsFixed(2)}', // Price only, no description
+                                  subtitle: Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      Text(
+                                        '\$${product.price.toStringAsFixed(2)}', // Price
+                                      ),
+                                      if (product.description.isNotEmpty)
+                                        Text(
+                                          product.description.length > 50
+                                              ? '${product.description.substring(0, min(50, product.description.length))}...'
+                                              : product.description,
+                                          style: Theme.of(context).textTheme.bodySmall,
+                                          maxLines: 2,
+                                          overflow: TextOverflow.ellipsis,
+                                        ), // Description preview – Safe substring
+                                    ],
                                   ),
                                   trailing: ElevatedButton(
                                     onPressed: () => _addToCart(product), // Quick add single

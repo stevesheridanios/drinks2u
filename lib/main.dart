@@ -1,15 +1,23 @@
 import 'package:flutter/material.dart';
-import 'home_screen.dart'; // Import the new HomeScreen file
 import 'package:firebase_core/firebase_core.dart';
+import 'package:cloud_firestore/cloud_firestore.dart'; // For Settings
+import 'home_screen.dart'; // Import the new HomeScreen file
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await Firebase.initializeApp();
+  
+  // Disable persistence to force server fetches (fixes stale cache for new fields like description)
+  FirebaseFirestore.instance.settings = const Settings(
+    persistenceEnabled: false,
+  );
+  
   runApp(const DanfelsApp());
 }
 
 class DanfelsApp extends StatelessWidget {
   const DanfelsApp({super.key});
+
   @override
   Widget build(BuildContext context) {
     return MaterialApp(

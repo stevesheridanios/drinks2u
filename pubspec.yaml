@@ -2,7 +2,7 @@ name: danfels
 description: "Danfels drinks app with categories, cart, and orders."
 publish_to: 'none'
 
-version: 1.9.1+1  # Bumped for latest changes
+version: 1.9.2+1  # Bumped for latest changes
 
 environment:
   sdk: ^3.9.2

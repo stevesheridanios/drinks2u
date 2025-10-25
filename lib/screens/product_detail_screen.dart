@@ -1,57 +1,31 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart'; // For kDebugMode
 import '../../models/product.dart';
 import '../../cart_manager.dart';
 
 class ProductDetailScreen extends StatefulWidget {
   final Product product;
   const ProductDetailScreen({super.key, required this.product});
-
   @override
   State<ProductDetailScreen> createState() => _ProductDetailScreenState();
 }
 
 class _ProductDetailScreenState extends State<ProductDetailScreen> {
-  int quantity = 1;
-  bool isCarton = false; // Toggle for carton (12-pack)
+  int _quantity = 1;
+  bool _isCarton = false; // Toggle unit vs carton
 
   @override
   void initState() {
     super.initState();
-    // Default to carton if desired, or single
-    if (isCarton) {
-      quantity = 12;
-    }
-  }
-
-  void _toggleCarton() {
-    setState(() {
-      isCarton = !isCarton;
-      quantity = isCarton ? 12 : 1;
-    });
-  }
-
-  void _incrementQuantity() {
-    setState(() {
-      quantity++;
-    });
-  }
-
-  void _decrementQuantity() {
-    if (quantity > 1) {
-      setState(() {
-        quantity--;
-      });
-    }
+    print('Detail init for ${widget.product.name} (ID: ${widget.product.id}): description = "${widget.product.description}" (length: ${widget.product.description.length})'); // Debug on entry
   }
 
   Future<void> _addToCart() async {
     try {
-      // Update CartManager to support initial quantity (modify addToCart to accept qty param)
-      await CartManager.addToCartWithQuantity(widget.product, quantity);
+      await CartManager.addToCart(widget.product); // Single add; update manager for qty if needed
       if (mounted) {
-        Navigator.pop(context); // Back to Products
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('${widget.product.name} x$quantity added to cart!')),
+          SnackBar(content: Text('${widget.product.name} x${_quantity}${_isCarton ? ' carton' : ''} added to cart!')),
         );
       }
     } catch (e) {
@@ -65,112 +39,112 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final double displayPrice = isCarton ? widget.product.price * 12 : widget.product.price;
-    final double total = displayPrice * quantity;
+    final product = widget.product;
+    final desc = product.description ?? ''; // Safe handling
+    final displayPrice = _isCarton ? (product.price * 6) : product.price; // Hardcoded carton = 6
+    final total = displayPrice * _quantity;
+    print('Build for ${product.name}: final desc = "$desc" (length: ${desc.length})'); // Debug on build
     return Scaffold(
       appBar: AppBar(
-        title: Text(widget.product.name),
-        backgroundColor: const Color(0xFF32CD32),
+        title: Text(product.name),
+        backgroundColor: const Color(0xFF32CD32), // Lime green
       ),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(16.0),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Image (updated: Network/Asset detection + error handling)
+            // Image
             Center(
-              child: (widget.product.image?.isNotEmpty ?? false)
-                  ? (widget.product.image!.startsWith('http')
+              child: (product.image?.isNotEmpty ?? false)
+                  ? (product.image!.startsWith('http')
                       ? Image.network(
-                          widget.product.image!,
-                          height: 200,
+                          product.image!,
+                          height: 250,
                           fit: BoxFit.contain,
                           loadingBuilder: (context, child, loadingProgress) =>
                               loadingProgress == null ? child : const CircularProgressIndicator(),
                           errorBuilder: (context, error, stackTrace) {
-                            print('Network image error in details for ${widget.product.name}: $error');
-                            return const Icon(Icons.image_not_supported, size: 200, color: Colors.grey);
+                            if (kDebugMode) print('Network image error: $error');
+                            return const Icon(Icons.error, size: 250);
                           },
                         )
                       : Image.asset(
-                          widget.product.image!,
-                          height: 200,
+                          product.image!,
+                          height: 250,
                           fit: BoxFit.contain,
                           errorBuilder: (context, error, stackTrace) {
-                            print('Asset image error in details for ${widget.product.name}: $error');
-                            return const Icon(Icons.image_not_supported, size: 200, color: Colors.grey);
+                            if (kDebugMode) print('Asset image error: $error');
+                            return const Icon(Icons.error, size: 250);
                           },
                         ))
-                  : CircleAvatar(
-                      radius: 100,
-                      child: Text(widget.product.name.isNotEmpty ? widget.product.name[0].toUpperCase() : '?'),
-                    ),
+                  : const Icon(Icons.image_not_supported, size: 250),
             ),
             const SizedBox(height: 16),
-            // Name and Price
+            // Name
             Text(
-              widget.product.name,
-              style: Theme.of(context).textTheme.headlineSmall,
+              product.name,
+              style: Theme.of(context).textTheme.headlineMedium,
             ),
+            // Price
             Text(
-              '\$${widget.product.price.toStringAsFixed(2)} per unit',
-              style: const TextStyle(fontSize: 16, color: Colors.green),
+              '\$${product.price.toStringAsFixed(2)} per unit',
+              style: Theme.of(context).textTheme.headlineSmall?.copyWith(color: const Color(0xFF32CD32)),
             ),
             const SizedBox(height: 8),
-            // Description (from products table, with label for clarity)
-            if (widget.product.description.isNotEmpty)
-              Padding(
-                padding: const EdgeInsets.only(top: 8.0, bottom: 8.0),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'Description:',
-                      style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
-                      widget.product.description,
-                      style: Theme.of(context).textTheme.bodyMedium,
-                    ),
-                  ],
-                ),
-              ),
-            const SizedBox(height: 16),
-            // Carton Toggle
+            // Toggle Unit/Carton
             Row(
               children: [
-                const Text('Buy by carton (12-pack)? '),
+                const Text('Buy by carton (6-pack)? '),
                 Switch(
-                  value: isCarton,
-                  onChanged: (_) => _toggleCarton(),
+                  value: _isCarton,
+                  onChanged: (_) {
+                    setState(() {
+                      _isCarton = ! _isCarton;
+                      _quantity = _isCarton ? 1 : _quantity;
+                    });
+                  },
                 ),
               ],
             ),
-            if (isCarton) Text('Price for carton: \$${ (widget.product.price * 12).toStringAsFixed(2) }'),
-            const SizedBox(height: 16),
+            if (_isCarton) Text('Price for carton: \$${ (product.price * 6).toStringAsFixed(2) }'),
+            const SizedBox(height: 8),
             // Quantity Selector
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceEvenly,
               children: [
                 IconButton(
-                  onPressed: _decrementQuantity,
+                  onPressed: _quantity > 1 ? () => setState(() => _quantity--) : null,
                   icon: const Icon(Icons.remove),
                 ),
-                Text('$quantity', style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold)),
+                Text('$_quantity', style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold)),
                 IconButton(
-                  onPressed: _incrementQuantity,
+                  onPressed: () => setState(() => _quantity++),
                   icon: const Icon(Icons.add),
                 ),
               ],
             ),
             const SizedBox(height: 16),
-            // Total
+            // Total (moved up for logical flow)
             Text(
               'Total: \$${total.toStringAsFixed(2)}',
-              style: Theme.of(context).textTheme.headlineMedium?.copyWith(color: Colors.green),
+              style: Theme.of(context).textTheme.headlineSmall?.copyWith(color: Colors.green),
             ),
-            const SizedBox(height: 24),
+            const SizedBox(height: 16),
+            // Description (MOVED HERE: After all pricing/quantity; now fully scrollable)
+            const Text(
+              'Description:',
+              style: TextStyle(fontWeight: FontWeight.bold),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              desc.isEmpty ? 'No description available.' : desc,
+              style: Theme.of(context).textTheme.bodyMedium,
+              maxLines: null,  // Updated: Unlimited lines for full text
+              overflow: TextOverflow.visible,  // Updated: No truncation
+              softWrap: true,  // Ensures proper line wrapping
+            ),
+            const SizedBox(height: 16),  // Extra space before button
             // Add to Cart Button
             SizedBox(
               width: double.infinity,

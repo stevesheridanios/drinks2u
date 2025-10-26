@@ -118,7 +118,6 @@ class _CartScreenState extends State<CartScreen> {
       );
       return;
     }
-
     // Fetch user profile from Firestore
     DocumentSnapshot userDoc = await FirebaseFirestore.instance.collection('users').doc(user.uid).get();
     if (!userDoc.exists) {
@@ -128,24 +127,47 @@ class _CartScreenState extends State<CartScreen> {
       return;
     }
     Map<String, dynamic> userData = userDoc.data() as Map<String, dynamic>;
-    String customerType = userData['type'] ?? 'personal';  // 'personal' or 'business' (add to account creation if missing)
+    String customerType = userData['account_type'] ?? 'personal'; // Updated key: 'account_type'
+    bool isBusiness = customerType.toLowerCase() == 'business';
 
-    // Build customer details HTML table
+    // Helper to construct address from split fields
+    String _getAddress() {
+      final street = userData['streetAddress'] ?? '';
+      final suburb = userData['suburb'] ?? '';
+      final location = userData['location'] ?? '';
+      final addressParts = [street, '$suburb $location'].where((part) => part.isNotEmpty).join(', ');
+      return addressParts.isNotEmpty ? addressParts : 'N/A';
+    }
+
+    // Helper to get field (simple, since no overrides needed now)
+    String _getField(String key) {
+      return userData[key] ?? 'N/A';
+    }
+
+    // Build customer details HTML table - Matches exact structure
     String customerDetails = '''
     <h3>Customer Details</h3>
     <table border="1" style="border-collapse: collapse; width: 100%;">
-      <tr><th>Customer Type</th><td>${customerType.toUpperCase()}</td></tr>
-      <tr><th>Name</th><td>${userData['name'] ?? 'N/A'}</td></tr>
-      <tr><th>Email</th><td>${userData['email'] ?? 'N/A'}</td></tr>
-      <tr><th>Phone</th><td>${userData['phone'] ?? 'N/A'}</td></tr>
-      <tr><th>Address</th><td>${userData['address'] ?? 'N/A'}</td></tr>
     ''';
-    if (customerType == 'business') {
+
+    if (isBusiness) {
+      // BUSINESS: Exact order - Business Name, Contact Name, Contact Number, Email, Address, Operating Hours, ABN
       customerDetails += '''
-      <tr><th>ABN</th><td>${userData['abn'] ?? 'N/A'}</td></tr>
-      <tr><th>Operating Hours</th><td>${userData['hours'] ?? 'N/A'}</td></tr>
-      <tr><th>Contact Person</th><td>${userData['contactPerson'] ?? 'N/A'}</td></tr>
-      <tr><th>Contact Number</th><td>${userData['contactNumber'] ?? 'N/A'}</td></tr>
+      <tr><th>Business Name</th><td>${_getField('business_name')}</td></tr>
+      <tr><th>Contact Name</th><td>${_getField('contact_name')}</td></tr>
+      <tr><th>Contact Number</th><td>${_getField('contact_phone')}</td></tr>
+      <tr><th>Email</th><td>${_getField('email')}</td></tr>
+      <tr><th>Address</th><td>${_getAddress()}</td></tr>
+      <tr><th>Operating Hours</th><td>${_getField('operating_hours')}</td></tr>
+      <tr><th>ABN</th><td>${_getField('abn')}</td></tr>
+      ''';
+    } else {
+      // PERSONAL: Name, Address, Phone, Email
+      customerDetails += '''
+      <tr><th>Name</th><td>${_getField('name')}</td></tr>
+      <tr><th>Address</th><td>${_getAddress()}</td></tr>
+      <tr><th>Phone</th><td>${_getField('phone')}</td></tr>
+      <tr><th>Email</th><td>${_getField('email')}</td></tr>
       ''';
     }
     customerDetails += '</table>';
@@ -183,6 +205,7 @@ class _CartScreenState extends State<CartScreen> {
     try {
       final sendReport = await send(message, smtpServer);
       print('Email sent! Report: ${sendReport.toString()}');
+      print('Email body preview: $customerDetails'); // Debug: Log table for verification
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Order sent via email! Check your inbox.')),
       );
@@ -196,19 +219,26 @@ class _CartScreenState extends State<CartScreen> {
       // Save order to Firestore under user UID
       await FirebaseFirestore.instance.collection('orders').add({
         'userId': user.uid,
-        'customerDetails': userData,  // Add full profile for reference
+        'customerDetails': userData, // Add full profile for reference
         'items': cartItems,
         'total': subtotal,
         'timestamp': FieldValue.serverTimestamp(),
       });
+      // Clear cart
+      await CartManager.clearCart();
+      // Debug: Confirm auth state post-checkout
+      print('Post-checkout auth state: User ${FirebaseAuth.instance.currentUser != null ? 'STILL LOGGED IN (${FirebaseAuth.instance.currentUser!.uid})' : 'LOGGED OUT'}');
+      // Navigate back to previous screen (e.g., products/home)
+      if (mounted) {
+        Navigator.pop(context); // Pop cart - goes back without logout
+      }
     } catch (e) {
       print('Checkout failed: $e');
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('Checkout failed: $e - Check console.')),
       );
     }
-    await CartManager.clearCart(); // Clear via manager
-    await _loadCart(); // Refresh UI
+    // Removed _loadCart() here since we navigate away on success
   }
 
   @override

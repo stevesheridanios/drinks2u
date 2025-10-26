@@ -6,6 +6,7 @@ import '../../cart_manager.dart';
 class ProductDetailScreen extends StatefulWidget {
   final Product product;
   const ProductDetailScreen({super.key, required this.product});
+
   @override
   State<ProductDetailScreen> createState() => _ProductDetailScreenState();
 }
@@ -21,13 +22,16 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
   }
 
   Future<void> _addToCart() async {
+    final effectiveQuantity = _isCarton ? (_quantity * 6) : _quantity; // e.g., 1 carton = 6 units
+    final unitLabel = _isCarton ? ' carton(s)' : ' unit(s)';
     try {
-      await CartManager.addToCart(widget.product); // Single add; update manager for qty if needed
+      await CartManager.addToCartWithQuantity(widget.product, effectiveQuantity);
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('${widget.product.name} x${_quantity}${_isCarton ? ' carton' : ''} added to cart!')),
+          SnackBar(content: Text('${widget.product.name} x${_quantity}$unitLabel (${effectiveQuantity} total units) added to cart!')),
         );
       }
+      print('Added ${widget.product.name}: qty=${_quantity} (carton: $_isCarton) -> effective ${effectiveQuantity} units'); // Debug confirm
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -41,9 +45,12 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
   Widget build(BuildContext context) {
     final product = widget.product;
     final desc = product.description ?? ''; // Safe handling
-    final displayPrice = _isCarton ? (product.price * 6) : product.price; // Hardcoded carton = 6
-    final total = displayPrice * _quantity;
+    final unitPrice = product.price; // Base unit price
+    final cartonPrice = unitPrice * 6; // Hardcoded 6 per carton
+    final displayPrice = _isCarton ? cartonPrice : unitPrice;
+    final total = displayPrice * _quantity; // Total based on selected qty (not effective for add)
     print('Build for ${product.name}: final desc = "$desc" (length: ${desc.length})'); // Debug on build
+
     return Scaffold(
       appBar: AppBar(
         title: Text(product.name),
@@ -54,7 +61,7 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Image
+            // Image (unchanged)
             Center(
               child: (product.image?.isNotEmpty ?? false)
                   ? (product.image!.startsWith('http')
@@ -81,18 +88,18 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                   : const Icon(Icons.image_not_supported, size: 250),
             ),
             const SizedBox(height: 16),
-            // Name
+            // Name (unchanged)
             Text(
               product.name,
               style: Theme.of(context).textTheme.headlineMedium,
             ),
-            // Price
+            // Price (updated for clarity on unit/carton)
             Text(
-              '\$${product.price.toStringAsFixed(2)} per unit',
+              '\$${unitPrice.toStringAsFixed(2)} per unit${_isCarton ? ' | \$${cartonPrice.toStringAsFixed(2)} per carton' : ''}',
               style: Theme.of(context).textTheme.headlineSmall?.copyWith(color: const Color(0xFF32CD32)),
             ),
             const SizedBox(height: 8),
-            // Toggle Unit/Carton
+            // Toggle Unit/Carton (unchanged)
             Row(
               children: [
                 const Text('Buy by carton (6-pack)? '),
@@ -101,18 +108,19 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                   onChanged: (_) {
                     setState(() {
                       _isCarton = ! _isCarton;
-                      _quantity = _isCarton ? 1 : _quantity;
+                      _quantity = _isCarton ? 1 : _quantity; // Reset qty to 1 on toggle if desired
                     });
                   },
                 ),
               ],
             ),
-            if (_isCarton) Text('Price for carton: \$${ (product.price * 6).toStringAsFixed(2) }'),
+            if (_isCarton) Text('Price for carton: \$${cartonPrice.toStringAsFixed(2)}'),
             const SizedBox(height: 8),
-            // Quantity Selector
+            // Quantity Selector (updated label for context)
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceEvenly,
               children: [
+                const Text('Quantity: ', style: TextStyle(fontWeight: FontWeight.bold)),
                 IconButton(
                   onPressed: _quantity > 1 ? () => setState(() => _quantity--) : null,
                   icon: const Icon(Icons.remove),
@@ -122,16 +130,17 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                   onPressed: () => setState(() => _quantity++),
                   icon: const Icon(Icons.add),
                 ),
+                if (_isCarton) Text('(x6 units each)', style: TextStyle(fontSize: 12, color: Colors.grey)),
               ],
             ),
             const SizedBox(height: 16),
-            // Total (moved up for logical flow)
+            // Total (updated to reflect display price * qty, but note effective for cart is different)
             Text(
-              'Total: \$${total.toStringAsFixed(2)}',
+              'Subtotal: \$${total.toStringAsFixed(2)}',
               style: Theme.of(context).textTheme.headlineSmall?.copyWith(color: Colors.green),
             ),
             const SizedBox(height: 16),
-            // Description (MOVED HERE: After all pricing/quantity; now fully scrollable)
+            // Description (unchanged)
             const Text(
               'Description:',
               style: TextStyle(fontWeight: FontWeight.bold),
@@ -140,12 +149,12 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
             Text(
               desc.isEmpty ? 'No description available.' : desc,
               style: Theme.of(context).textTheme.bodyMedium,
-              maxLines: null,  // Updated: Unlimited lines for full text
-              overflow: TextOverflow.visible,  // Updated: No truncation
-              softWrap: true,  // Ensures proper line wrapping
+              maxLines: null, // Updated: Unlimited lines for full text
+              overflow: TextOverflow.visible, // Updated: No truncation
+              softWrap: true, // Ensures proper line wrapping
             ),
-            const SizedBox(height: 16),  // Extra space before button
-            // Add to Cart Button
+            const SizedBox(height: 16), // Extra space before button
+            // Add to Cart Button (unchanged)
             SizedBox(
               width: double.infinity,
               child: ElevatedButton(

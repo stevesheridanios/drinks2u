@@ -69,7 +69,7 @@ class _CartScreenState extends State<CartScreen> {
     final cartKey = 'cart_items'; // Hardcode to match CartManager
     List<String> cartJson = prefs.getStringList(cartKey) ?? [];
     bool updated = false;
-    for (int i = 0; i < cartJson.length; i++) {
+    for (int i = 0; i <cartJson.length; i++) {
       final item = json.decode(cartJson[i]);
       if (item['id'] == productId) {
         if (item['quantity'] > 1) {
@@ -201,11 +201,11 @@ class _CartScreenState extends State<CartScreen> {
     </html>
     ''';
 
-    / Send email with mailer (your existing SMTP - update as per previous)
-    final smtpServer = gmail('salesdrinks2u@gmail.com', 'nooxahzlstrhcloi');
+    // Send email with mailer (your existing SMTP - update as per previous)
+    final smtpServer = gmail('steve.sheridan.ios@gmail.com', 'demromgqmodowbjt');
     final message = Message()
-      ..from = const Address('salesdrinks2u@gmail.com')
-      ..recipients = [const Address('salesdrinks2u@gmail.com')]
+      ..from = const Address('steve.sheridan.ios@gmail.com')
+      ..recipients = [const Address('steve.sheridan.ios@gmail.com')]
       ..subject = 'New Danfels Order - Total \$${subtotal.toStringAsFixed(2)}'
       ..html = emailBody;
 

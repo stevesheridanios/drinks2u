@@ -3,26 +3,24 @@ import 'package:flutter/services.dart' show rootBundle;
 import 'package:flutter/foundation.dart'; // For kDebugMode
 import 'dart:convert';
 import 'dart:math'; // For min()
-import 'package:shared_preferences/shared_preferences.dart'; // For pricing mode
+import 'package:shared_preferences/shared_preferences.dart'; // For pricing mode (kept for compatibility)
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import '../models/product.dart';
 import '../cart_manager.dart';
 import 'screens/product_detail_screen.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-
 class ProductsScreen extends StatefulWidget {
   const ProductsScreen({super.key});
-
   @override
   State<ProductsScreen> createState() => _ProductsScreenState();
 }
-
 class _ProductsScreenState extends State<ProductsScreen> {
   List<Product> allProducts = [];
   List<Product> filteredProducts = [];
   String selectedCategory = 'Aloe Vera'; // Default to Aloe Vera
   bool isLoading = true; // Track loading state explicitly
   bool _isLoaded = false; // Prevent double-loading
-
   // Your 9 categories + 'All' for filtering (matched to hardcoded keys)
   List<String> categories = [
     'All',
@@ -36,7 +34,6 @@ class _ProductsScreenState extends State<ProductsScreen> {
     'Soft Drink',
     'Water',
   ];
-
   @override
   void initState() {
     super.initState();
@@ -45,7 +42,6 @@ class _ProductsScreenState extends State<ProductsScreen> {
       _isLoaded = true;
     }
   }
-
   Future<void> loadProducts() async {
     setState(() => isLoading = true); // Always show spinner for refresh
     _isLoaded = false; // Reset for refresh (allows re-load)
@@ -78,7 +74,6 @@ class _ProductsScreenState extends State<ProductsScreen> {
           'image': mapData['image'] ?? '',
         };
         data.add(mappedItem);
-
         // Per-doc debug: Raw vs mapped, especially for Nippys
         if (kDebugMode) {
           final name = mapData['name'] ?? 'Unnamed';
@@ -88,14 +83,12 @@ class _ProductsScreenState extends State<ProductsScreen> {
           }
         }
       }
-
       // Temp diagnostic: Find Nippys and log full item
       final nippysItem = data.firstWhere((item) => (item['name'] as String).contains('Nippys'), orElse: () => null);
       if (nippysItem != null) {
         print('*** NIPPYS FULL MAPPED ITEM: $nippysItem');
         print('*** NIPPYS DESCRIPTION FROM MAPPED: "${nippysItem['description']}"');
       }
-
       // Debug: Log first 3 items (remove after testing)
       for (int i = 0; i < data.length && i < 3; i++) {
         final item = data[i];
@@ -148,7 +141,6 @@ class _ProductsScreenState extends State<ProductsScreen> {
       }
     }
   }
-
   Future<void> _loadHardcodedProducts() async {
     if (_isLoaded) return; // Prevent double fallback
     print('Loading fallback hardcoded products...'); // Debug: Fallback start
@@ -179,16 +171,31 @@ class _ProductsScreenState extends State<ProductsScreen> {
       });
     }
   }
-
   Future<void> _applyPricing(List<Product> products) async {
-    final prefs = await SharedPreferences.getInstance();
-    final String mode = prefs.getString('pricingMode') ?? 'regional';
+    // NEW: Fetch user type for dynamic pricing
+    String mode = 'regional'; // Default for non-logged-in
+    final user = FirebaseAuth.instance.currentUser;
+    if (user != null) {
+      try {
+        final userDoc = await FirebaseFirestore.instance.collection('users').doc(user.uid).get();
+        if (userDoc.exists) {
+          final userData = userDoc.data() as Map<String, dynamic>;
+          final accountType = userData['account_type'] ?? 'personal';
+          mode = accountType.toLowerCase() == 'business' ? 'metro' : 'regional';
+          print('Pricing mode set to $mode based on account_type: $accountType for user ${user.uid}'); // Debug
+        }
+      } catch (e) {
+        print('Error fetching user type for pricing: $e - Defaulting to regional'); // Fallback
+      }
+    } else {
+      print('No user logged in - Using regional pricing'); // Debug
+    }
+    // Apply mode to products
     for (final product in products) {
       product.price = mode == 'metro' ? product.metro : product.regional;
       print('Applied pricing for ${product.name}: $mode - New price: \$${product.price} (description preserved: "${product.description}")'); // Debug: Confirm description survives pricing
     }
   }
-
   void filterProducts(String category) {
     setState(() {
       selectedCategory = category;
@@ -200,13 +207,14 @@ class _ProductsScreenState extends State<ProductsScreen> {
       print('Filtered to ${filteredProducts.length} products for $category'); // Debug: Filter result
     });
   }
-
+  // UPDATED: Quick add now for 1 carton (TASK 2)
   Future<void> _addToCart(Product product) async {
+    const int unitsPerCarton = 6;
     try {
-      await CartManager.addToCart(product);
+      await CartManager.addToCartWithQuantity(product, unitsPerCarton);
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('${product.name} added to cart!')),
+          SnackBar(content: Text('${product.name} (1 carton / ${unitsPerCarton} units) added to cart!')),
         );
       }
     } catch (e) {
@@ -217,7 +225,6 @@ class _ProductsScreenState extends State<ProductsScreen> {
       }
     }
   }
-
   // Keep your hardcoded map here temporarily for fallback – Added descriptions
   Map<String, List<Map<String, dynamic>>> productsByCategory = {
     'Aloe Vera': [
@@ -253,7 +260,6 @@ class _ProductsScreenState extends State<ProductsScreen> {
       {'name': 'Pure Water', 'price': 1.00, 'image': null, 'description': 'Pure filtered water.'},
     ],
   };
-
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -377,8 +383,9 @@ class _ProductsScreenState extends State<ProductsScreen> {
                                         ), // Description preview – Safe substring
                                     ],
                                   ),
+                                  // UPDATED: Quick add button for 1 carton (TASK 2)
                                   trailing: ElevatedButton(
-                                    onPressed: () => _addToCart(product), // Quick add single
+                                    onPressed: () => _addToCart(product),
                                     child: const Icon(Icons.add_shopping_cart),
                                   ),
                                 ),

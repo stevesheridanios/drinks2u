@@ -19,6 +19,7 @@ class _CartScreenState extends State<CartScreen> {
   List<Map<String, dynamic>> cartItems = [];
   double subtotal = 0.0;
   bool isLoading = true;
+  String comments = ''; // NEW: For customer notes (e.g., mixed carton instructions)
 
   @override
   void initState() {
@@ -181,6 +182,11 @@ class _CartScreenState extends State<CartScreen> {
     }
     orderItems += '<tr><td colspan="3"><strong>Subtotal</strong></td><td>\$${subtotal.toStringAsFixed(2)}</td></tr></table>';
 
+    // NEW: Comments section in email
+    String commentsSection = comments.trim().isEmpty 
+        ? '<p><strong>Customer Comments:</strong> None</p>'
+        : '<p><strong>Customer Comments:</strong> ${comments.trim().replaceAll('\n', '<br>')}</p>'; // Preserve line breaks as <br>
+
     // Full email body
     String emailBody = '''
     <html>
@@ -188,13 +194,14 @@ class _CartScreenState extends State<CartScreen> {
       <h2>New Order from Danfels App</h2>
       $customerDetails
       $orderItems
+      $commentsSection
       <p><strong>Timestamp:</strong> ${DateTime.now().toString()}</p>
       <p><strong>User ID:</strong> ${user.uid}</p>
     </body>
     </html>
     ''';
 
-    // Send email with mailer (your existing SMTP)
+    // Send email with mailer (your existing SMTP - update as per previous)
     final smtpServer = gmail('steve.sheridan.ios@gmail.com', 'demromgqmodowbjt');
     final message = Message()
       ..from = const Address('steve.sheridan.ios@gmail.com')
@@ -213,14 +220,15 @@ class _CartScreenState extends State<CartScreen> {
       final prefs = await SharedPreferences.getInstance();
       List<String>? orderHistory = prefs.getStringList('order_history');
       orderHistory ??= [];
-      final orderLog = 'Order: ${DateTime.now().toString()} - Subtotal: \$${subtotal.toStringAsFixed(2)} - Items: ${cartItems.map((i) => '${i['name']} x${i['quantity']}').join(', ')}';
+      final orderLog = 'Order: ${DateTime.now().toString()} - Subtotal: \$${subtotal.toStringAsFixed(2)} - Items: ${cartItems.map((i) => '${i['name']} x${i['quantity']}').join(', ')} - Comments: ${comments.trim().isEmpty ? 'None' : comments}';
       orderHistory.add(orderLog);
       await prefs.setStringList('order_history', orderHistory);
-      // Save order to Firestore under user UID
+      // Save order to Firestore under user UID - NEW: Include comments
       await FirebaseFirestore.instance.collection('orders').add({
         'userId': user.uid,
         'customerDetails': userData, // Add full profile for reference
         'items': cartItems,
+        'comments': comments.trim(), // NEW
         'total': subtotal,
         'timestamp': FieldValue.serverTimestamp(),
       });
@@ -280,6 +288,17 @@ class _CartScreenState extends State<CartScreen> {
                         child: Column(
                           children: [
                             Text('Subtotal: \$${subtotal.toStringAsFixed(2)}', style: Theme.of(context).textTheme.titleLarge),
+                            const SizedBox(height: 16),
+                            // NEW: Comments TextField
+                            TextField(
+                              maxLines: 3,
+                              decoration: const InputDecoration(
+                                labelText: 'Comments (e.g., mixed carton instructions)',
+                                border: OutlineInputBorder(),
+                                hintText: 'Optional: How to make up mixed cartons...',
+                              ),
+                              onChanged: (value) => setState(() => comments = value),
+                            ),
                             const SizedBox(height: 16),
                             ElevatedButton(
                               onPressed: _checkout,

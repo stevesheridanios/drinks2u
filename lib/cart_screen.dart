@@ -202,10 +202,10 @@ class _CartScreenState extends State<CartScreen> {
     ''';
 
     // Send email with mailer (your existing SMTP - update as per previous)
-    final smtpServer = gmail('steve.sheridan.ios@gmail.com', 'demromgqmodowbjt');
+    final smtpServer = gmail('salesdrinks2u@gmail.com', 'nooxahzlstrhcloi');
     final message = Message()
-      ..from = const Address('steve.sheridan.ios@gmail.com')
-      ..recipients = [const Address('steve.sheridan.ios@gmail.com')]
+      ..from = const Address('salesdrinks2u@gmail.com')
+      ..recipients = [const Address('salesdrinks2u@gmail.com')]
       ..subject = 'New Danfels Order - Total \$${subtotal.toStringAsFixed(2)}'
       ..html = emailBody;
 

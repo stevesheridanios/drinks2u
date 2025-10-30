@@ -1,7 +1,7 @@
 name: danfels
 description: "Danfels drinks app with categories, cart, and orders."
 publish_to: 'none'
-version: 1.17.0+1  # Bumped for icon update
+version: 1.17.1+2  # Bumped for icon update
 
 environment:
   sdk: ^3.9.0  # Compatible with Dart 3.9.2

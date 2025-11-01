@@ -19,7 +19,7 @@ class _CartScreenState extends State<CartScreen> {
   List<Map<String, dynamic>> cartItems = [];
   double subtotal = 0.0;
   bool isLoading = true;
-  String comments = ''; // NEW: For customer notes (e.g., mixed carton instructions)
+  String comments = ''; // For customer notes (e.g., mixed carton instructions)
 
   @override
   void initState() {
@@ -64,30 +64,14 @@ class _CartScreenState extends State<CartScreen> {
     }
   }
 
-  Future<void> _decrementItem(int productId) async {
-    final prefs = await SharedPreferences.getInstance();
-    final cartKey = 'cart_items'; // Hardcode to match CartManager
-    List<String> cartJson = prefs.getStringList(cartKey) ?? [];
-    bool updated = false;
-    for (int i = 0; i <cartJson.length; i++) {
-      final item = json.decode(cartJson[i]);
-      if (item['id'] == productId) {
-        if (item['quantity'] > 1) {
-          item['quantity']--;
-          cartJson[i] = json.encode(item);
-          updated = true;
-        } else {
-          cartJson.removeAt(i);
-          updated = true;
-        }
-        break;
-      }
-    }
-    if (updated) {
-      await prefs.setStringList(cartKey, cartJson);
-      await _loadCart(); // Refresh UI
+  // UPDATED: Now removes the entire item (full line) on click, not just decrement
+  Future<void> _removeItem(int productId) async {
+    print('Removing full item ID: $productId from cart...'); // Debug
+    await CartManager.removeFromCart(productId); // Uses manager's remove method
+    await _loadCart(); // Refresh UI & subtotal
+    if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Item updated in cart')),
+        const SnackBar(content: Text('Item removed from cart')),
       );
     }
   }
@@ -182,7 +166,7 @@ class _CartScreenState extends State<CartScreen> {
     }
     orderItems += '<tr><td colspan="3"><strong>Subtotal</strong></td><td>\$${subtotal.toStringAsFixed(2)}</td></tr></table>';
 
-    // NEW: Comments section in email
+    // Comments section in email
     String commentsSection = comments.trim().isEmpty 
         ? '<p><strong>Customer Comments:</strong> None</p>'
         : '<p><strong>Customer Comments:</strong> ${comments.trim().replaceAll('\n', '<br>')}</p>'; // Preserve line breaks as <br>
@@ -223,7 +207,7 @@ class _CartScreenState extends State<CartScreen> {
       final orderLog = 'Order: ${DateTime.now().toString()} - Subtotal: \$${subtotal.toStringAsFixed(2)} - Items: ${cartItems.map((i) => '${i['name']} x${i['quantity']}').join(', ')} - Comments: ${comments.trim().isEmpty ? 'None' : comments}';
       orderHistory.add(orderLog);
       await prefs.setStringList('order_history', orderHistory);
-      // Save order to Firestore under user UID - NEW: Include comments
+      // Save order to Firestore under user UID—with comments
       await FirebaseFirestore.instance.collection('orders').add({
         'userId': user.uid,
         'customerDetails': userData, // Add full profile for reference
@@ -238,7 +222,7 @@ class _CartScreenState extends State<CartScreen> {
       print('Post-checkout auth state: User ${FirebaseAuth.instance.currentUser != null ? 'STILL LOGGED IN (${FirebaseAuth.instance.currentUser!.uid})' : 'LOGGED OUT'}');
       // Navigate back to previous screen (e.g., products/home)
       if (mounted) {
-        Navigator.pop(context); // Pop cart - goes back without logout
+        Navigator.pop(context); // Pop cart—goes back without logout
       }
     } catch (e) {
       print('Checkout failed: $e');
@@ -275,8 +259,8 @@ class _CartScreenState extends State<CartScreen> {
                                 title: Text('${item['name']} x${item['quantity']}'),
                                 subtitle: Text('\$${item['price'].toStringAsFixed(2)} each - Line Total: \$${lineTotal.toStringAsFixed(2)}'),
                                 trailing: IconButton(
-                                  icon: const Icon(Icons.remove),
-                                  onPressed: () => _decrementItem(item['id']),
+                                  icon: const Icon(Icons.remove), // Keep '-' icon for familiarity
+                                  onPressed: () => _removeItem(item['id']), // UPDATED: Now removes entire item
                                 ),
                               ),
                             );
@@ -289,7 +273,7 @@ class _CartScreenState extends State<CartScreen> {
                           children: [
                             Text('Subtotal: \$${subtotal.toStringAsFixed(2)}', style: Theme.of(context).textTheme.titleLarge),
                             const SizedBox(height: 16),
-                            // NEW: Comments TextField
+                            // Comments TextField
                             TextField(
                               maxLines: 3,
                               decoration: const InputDecoration(

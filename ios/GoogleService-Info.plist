@@ -3,13 +3,13 @@
 <plist version="1.0">
 <dict>
 	<key>API_KEY</key>
-	<string>AIzaSyAbPnLPYqljLBORTsp_KtHkPJIdpkB0reo</string>
+	<string>AIzaSyCIvQYa_y1Ju62iW-4pW6q9rUnMp19OGe4</string>
 	<key>GCM_SENDER_ID</key>
 	<string>817894280881</string>
 	<key>PLIST_VERSION</key>
 	<string>1</string>
 	<key>BUNDLE_ID</key>
-	<string>com.stevesheridanios.danfels</string>
+	<string>com.stevesheridanios.danfels2</string>
 	<key>PROJECT_ID</key>
 	<string>danfels</string>
 	<key>STORAGE_BUCKET</key>
@@ -25,6 +25,6 @@
 	<key>IS_SIGNIN_ENABLED</key>
 	<true></true>
 	<key>GOOGLE_APP_ID</key>
-	<string>1:817894280881:ios:d2b30e8db543c9bda11c90</string>
+	<string>1:817894280881:ios:869196ff52b4a344a11c90</string>
 </dict>
 </plist>

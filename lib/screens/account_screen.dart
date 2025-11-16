@@ -6,32 +6,26 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'dart:convert'; // For JSON
 import 'dart:async'; // For timeout
 import 'login_screen.dart'; // For navigation
-
 class AccountScreen extends StatefulWidget {
   const AccountScreen({super.key});
-
   @override
   State<AccountScreen> createState() => _AccountScreenState();
 }
-
 class _AccountScreenState extends State<AccountScreen> {
   Map<String, dynamic>? _userData;
   List<String> _orderHistory = [];
   bool _isProfileLoading = true; // Start true to show spinner
   StreamSubscription<User?>? _authSubscription; // For manual listen
-
   @override
   void initState() {
     super.initState();
     _listenToAuthChanges(); // Proactive listener
   }
-
   @override
   void dispose() {
     _authSubscription?.cancel();
     super.dispose();
   }
-
   // Proactive listener to catch user emission immediately
   void _listenToAuthChanges() {
     _authSubscription = FirebaseAuth.instance.authStateChanges().listen((User? user) {
@@ -49,7 +43,6 @@ class _AccountScreenState extends State<AccountScreen> {
       }
     });
   }
-
   // Robust recursive Timestamp converter for JSON encoding
   Map<String, dynamic> _convertTimestamps(Map<String, dynamic> data) {
     final Map<String, dynamic> converted = {};
@@ -74,19 +67,15 @@ class _AccountScreenState extends State<AccountScreen> {
     });
     return converted;
   }
-
   Future<void> _loadProfile(User user) async {
     if (!mounted) return;
     print('=== DEBUG: Starting _loadProfile for UID: ${user.uid} ===');
     print('=== DEBUG: CurrentUser in load: ${FirebaseAuth.instance.currentUser?.uid} ==='); // Debug
-
     setState(() => _isProfileLoading = true);
-
     try {
       final prefs = await SharedPreferences.getInstance();
       final userDataStr = prefs.getString('user_data');
       final orderHistory = prefs.getStringList('order_history') ?? [];
-
       // Quick fallback if prefs has data (bypass Firestore for speed)
       if (userDataStr != null) {
         try {
@@ -106,7 +95,6 @@ class _AccountScreenState extends State<AccountScreen> {
           print('=== DEBUG: Prefs decode failed: $decodeErr ===');
         }
       }
-
       // Firestore fetch with longer timeout (10s for Android)
       final userDoc = await FirebaseFirestore.instance
           .collection('users')
@@ -116,14 +104,12 @@ class _AccountScreenState extends State<AccountScreen> {
             print('=== DEBUG: Firestore timeout - using prefs ===');
             throw TimeoutException('Firestore timeout', const Duration(seconds: 10));
           });
-
       print('=== DEBUG: Firestore fetch complete ===');
-
       if (userDoc.exists) {
         final freshData = userDoc.data() as Map<String, dynamic>;
         final convertedData = _convertTimestamps(freshData);
         print('=== DEBUG: Timestamp conversion complete - keys: ${convertedData.keys.toList()} ===');
-        
+      
         await prefs.setString('user_data', json.encode(convertedData));
         if (mounted) {
           setState(() {
@@ -170,7 +156,6 @@ class _AccountScreenState extends State<AccountScreen> {
       }
     }
   }
-
   Future<void> _logout() async {
     try {
       await FirebaseAuth.instance.signOut();
@@ -197,21 +182,65 @@ class _AccountScreenState extends State<AccountScreen> {
       }
     }
   }
-
+  // UPDATED: Delete Account method (for Account Screen) - Fixed duplicate onPressed and context handling
+  Future<void> _deleteAccount() async {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user != null && mounted) {
+      // Capture outer context for navigation after dialog closes
+      final outerContext = context;
+      // Confirmation dialog
+      showDialog(
+        context: context,
+        builder: (BuildContext dialogContext) => AlertDialog(
+          title: const Text('Delete Account'),
+          content: const Text('This will permanently delete your account and data. Are you sure?'),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(dialogContext).pop(),
+              child: const Text('Cancel'),
+            ),
+            TextButton(
+              onPressed: () async {
+                Navigator.of(dialogContext).pop(); // Close dialog first
+                try {
+                  await user.delete(); // Firebase delete
+                  final prefs = await SharedPreferences.getInstance();
+                  await prefs.clear(); // Clear local data
+                  if (outerContext.mounted) {
+                    Navigator.of(outerContext).pushReplacement(
+                      MaterialPageRoute(builder: (context) => const LoginScreen()),
+                    );
+                    ScaffoldMessenger.of(outerContext).showSnackBar(
+                      const SnackBar(content: Text('Account deleted successfully')),
+                    );
+                  }
+                } catch (e) {
+                  if (outerContext.mounted) {
+                    ScaffoldMessenger.of(outerContext).showSnackBar(
+                      SnackBar(content: Text('Delete failed: $e')),
+                    );
+                  }
+                }
+              },
+              child: const Text('Delete'),
+            ),
+          ],
+        ),
+      );
+    }
+  }
   @override
   Widget build(BuildContext context) {
     return StreamBuilder<User?>(
       stream: FirebaseAuth.instance.authStateChanges(),
       builder: (context, snapshot) {
         print('=== DEBUG: Stream snapshot: ${snapshot.connectionState}, User: ${snapshot.data?.uid ?? "null"} ==='); // Debug
-
         if (snapshot.connectionState == ConnectionState.waiting || _isProfileLoading) {
           print('=== DEBUG: Showing spinner (state: ${snapshot.connectionState}, loading: $_isProfileLoading) ===');
           return const Scaffold(
             body: Center(child: CircularProgressIndicator()),
           );
         }
-
         final user = snapshot.data;
         if (user == null) {
           print('=== DEBUG: No authenticated user - redirecting to login ===');
@@ -227,7 +256,6 @@ class _AccountScreenState extends State<AccountScreen> {
             body: Center(child: CircularProgressIndicator()),
           );
         }
-
         // If user exists but no data yet, trigger load (safety net)
         if (_userData == null) {
           print('=== DEBUG: User exists but no data - triggering load ===');
@@ -236,7 +264,6 @@ class _AccountScreenState extends State<AccountScreen> {
             body: Center(child: CircularProgressIndicator()),
           );
         }
-
         // Loaded state
         final isBusiness = _userData!['account_type'] == 'business';
         final fullAddress = '${_userData!['streetAddress'] ?? ''}, ${_userData!['location'] ?? ''}';
@@ -283,7 +310,7 @@ class _AccountScreenState extends State<AccountScreen> {
                             const SizedBox(height: 8),
                             Text('ABN: ${_userData!['abn']}'),
                             Text('Operating Hours: ${_userData!['operating_hours']}'),
-                            Text('Contact Name: ${_userData!['contact_name']}'),
+                            Text('Contact Name: ${_userData!['created_name']}'),
                             Text('Contact Phone: ${_userData!['contact_phone']}'),
                           ],
                           // Display converted timestamp if present
@@ -325,6 +352,18 @@ class _AccountScreenState extends State<AccountScreen> {
                         );
                       },
                     ),
+                  const SizedBox(height: 24),
+                  // NEW: Delete Account Button (bottom)
+                  Center(
+                    child: ElevatedButton(
+                      onPressed: _deleteAccount,
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.red,
+                        foregroundColor: Colors.white,
+                      ),
+                      child: const Text('Delete Account'),
+                    ),
+                  ),
                 ],
               ),
             ),
@@ -333,7 +372,6 @@ class _AccountScreenState extends State<AccountScreen> {
       },
     );
   }
-
   Future<void> _removeOrder(int index) async {
     setState(() {
       _orderHistory.removeAt(index);

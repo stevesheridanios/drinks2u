@@ -5,20 +5,18 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'dart:convert'; // For JSON
 import 'dart:io'; // For Platform
+import 'dart:async'; // For StreamSubscription and Timer
 import 'account_screen.dart'; // Same folder
-
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
-
   @override
   State<LoginScreen> createState() => _LoginScreenState();
 }
-
 class _LoginScreenState extends State<LoginScreen> {
   bool _isCreatingAccount = false;
   bool _isBusinessAccount = false;
   bool _isLoading = false;
-
+  StreamSubscription<User?>? _authListener; // For post-auth confirmation
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
   final _nameController = TextEditingController();
@@ -29,14 +27,12 @@ class _LoginScreenState extends State<LoginScreen> {
   final _operatingHoursController = TextEditingController();
   final _contactNameController = TextEditingController();
   final _contactPhoneController = TextEditingController();
-
   Future<void> _handleSubmit() async {
     setState(() => _isLoading = true);
     User? user; // Scoped for cleanup
     try {
       final email = _emailController.text.trim();
       final password = _passwordController.text.trim();
-
       // Pre-validation (applies to both login and create)
       if (email.isEmpty || password.isEmpty) {
         _showSnackBar('Please enter email and password');
@@ -56,7 +52,6 @@ class _LoginScreenState extends State<LoginScreen> {
         return;
       }
       print('Password validated client-side: OK'); // Debug log
-
       if (_isCreatingAccount) {
         // Declare fields upfront for scope
         final name = _nameController.text.trim();
@@ -83,7 +78,6 @@ class _LoginScreenState extends State<LoginScreen> {
             return;
           }
         }
-
         // Temporary bypass for iOS testing (remove in production)
         if (kDebugMode && Platform.isIOS) {
           await FirebaseAuth.instance.setSettings(
@@ -91,7 +85,6 @@ class _LoginScreenState extends State<LoginScreen> {
           );
           print('Debug: Disabled app verification for iOS testing');
         }
-
         // Create user
         final credential = await FirebaseAuth.instance.createUserWithEmailAndPassword(
           email: email,
@@ -102,7 +95,6 @@ class _LoginScreenState extends State<LoginScreen> {
           _showSnackBar('Failed to create account');
           return;
         }
-
         // Prepare and save user data to Firestore
         Map<String, dynamic> userData = {
           'email': email,
@@ -134,7 +126,6 @@ class _LoginScreenState extends State<LoginScreen> {
         user = credential.user;
         _showSnackBar('Logged in successfully!');
       }
-
       // Post-auth: Sync profile and pricing
       final prefs = await SharedPreferences.getInstance();
       await prefs.setBool('is_logged_in', true);
@@ -146,7 +137,6 @@ class _LoginScreenState extends State<LoginScreen> {
             Map<String, dynamic> userData = _convertTimestamps(Map<String, dynamic>.from(userDoc.data()!));
             print('Timestamp conversion complete - userData keys: ${userData.keys.toList()}'); // Debug
             await prefs.setString('user_data', json.encode(userData));
-
             // Set pricing mode: Prefer saved suburb, fallback to extraction
             String? suburb = userData['suburb']?.toString();
             if (suburb == null || suburb.isEmpty) {
@@ -170,12 +160,26 @@ class _LoginScreenState extends State<LoginScreen> {
           await prefs.setString('pricingMode', 'regional');
         }
       }
-
-      if (mounted) {
-        Navigator.pushReplacement(
-          context,
-          MaterialPageRoute(builder: (context) => const AccountScreen()),
-        );
+      // FIXED: Wait for auth state confirmation before navigating (prevents race condition logout)
+      if (user != null) {
+        _authListener = FirebaseAuth.instance.authStateChanges().listen((User? confirmedUser) {
+          print('Post-auth listener: Confirmed user UID = ${confirmedUser?.uid ?? "NULL"}'); // Debug
+          if (confirmedUser != null && user != null && confirmedUser.uid == user.uid) {
+            _authListener?.cancel(); // Stop listening
+            _navigateToAccount(); // Safe navigate
+          }
+        });
+        // Fallback timeout to prevent hanging (3s is ample for stream emission)
+        Timer(const Duration(seconds: 3), () {
+          if (_authListener != null && mounted) {
+            _authListener?.cancel();
+            print('Auth confirmation timeout - fallback navigate'); // Debug
+            _navigateToAccount();
+          }
+        });
+      } else {
+        // Rare: No user - direct navigate (but shouldn't happen)
+        _navigateToAccount();
       }
     } on FirebaseAuthException catch (e) {
       print('Firebase Auth error: code=${e.code}, message=${e.message}');
@@ -221,7 +225,15 @@ class _LoginScreenState extends State<LoginScreen> {
       if (mounted) setState(() => _isLoading = false);
     }
   }
-
+  // Extracted navigation to a separate method for reuse
+  void _navigateToAccount() {
+    if (mounted) {
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(builder: (context) => const AccountScreen()),
+      );
+    }
+  }
   // Robust recursive Timestamp converter for JSON encoding
   Map<String, dynamic> _convertTimestamps(Map<String, dynamic> data) {
     final Map<String, dynamic> converted = {};
@@ -246,30 +258,29 @@ class _LoginScreenState extends State<LoginScreen> {
     });
     return converted;
   }
-
   // Improved suburb extraction from location field (e.g., "Bexley North NSW 2207")
   String? _extractSuburbFromLocation(String location) {
     if (location.isEmpty) return null;
     String locationText = location.trim().toLowerCase();
-    
+   
     // List of common Australian states/territories (lowercase)
     List<String> states = ['nsw', 'vic', 'qld', 'sa', 'wa', 'tas', 'act', 'nt'];
-    
+   
     // Split by space, take words until postcode (4-5 digits) or state
     List<String> parts = locationText.split(' ');
-    Iterable<String> suburbParts = parts.takeWhile((part) => 
+    Iterable<String> suburbParts = parts.takeWhile((part) =>
       !RegExp(r'^\d{4,5}$').hasMatch(part) && !states.contains(part)
     );
     String suburb = suburbParts.join(' ').trim();
-    
+   
     // Fallback: If no clear suburb, strip trailing numbers/spaces
     if (suburb.isEmpty) {
       suburb = locationText.replaceAll(RegExp(r'[0-9\s]+$'), '').trim();
     }
-    
+   
     // Clean up common artifacts (e.g., remove standalone "st")
     suburb = suburb.replaceAll(RegExp(r'\bst\b'), '').trim();
-    
+   
     // Validate: Letters and spaces only, min length > 2
     if (RegExp(r'^[a-zA-Z\s]+$').hasMatch(suburb) && suburb.length > 2) {
       print('Extracted suburb: "$suburb" from location: "$locationText"'); // Debug
@@ -277,7 +288,6 @@ class _LoginScreenState extends State<LoginScreen> {
     }
     return null;
   }
-
   Future<bool> _checkMetroSuburb(String suburb) async {
     try {
       final doc = await FirebaseFirestore.instance.collection('config').doc('metro_suburbs').get();
@@ -287,8 +297,8 @@ class _LoginScreenState extends State<LoginScreen> {
         final suburbWords = suburb.split(' ');
         return suburbs.any((s) {
           final sStr = s.toString().toLowerCase();
-          return sStr == suburb.toLowerCase() || 
-                 sStr.contains(suburb.toLowerCase()) || 
+          return sStr == suburb.toLowerCase() ||
+                 sStr.contains(suburb.toLowerCase()) ||
                  suburbWords.any((word) => sStr.contains(word.toLowerCase()));
         });
       }
@@ -297,7 +307,6 @@ class _LoginScreenState extends State<LoginScreen> {
     }
     return false; // Default to regional on error
   }
-
   void _showSnackBar(String message) {
     if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -305,14 +314,12 @@ class _LoginScreenState extends State<LoginScreen> {
       );
     }
   }
-
   void _toggleCreateAccount(bool? value) {
     setState(() {
       _isCreatingAccount = value ?? false;
       if (!_isCreatingAccount) _isBusinessAccount = false;
     });
   }
-
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -512,9 +519,9 @@ class _LoginScreenState extends State<LoginScreen> {
       ),
     );
   }
-
   @override
   void dispose() {
+    _authListener?.cancel(); // Cleanup listener
     _emailController.dispose();
     _passwordController.dispose();
     _nameController.dispose();

@@ -16,8 +16,8 @@
 		97C146FE1CF9000F007C117D /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 97C146FD1CF9000F007C117D /* Assets.xcassets */; };
 		97C147011CF9000F007C117D /* LaunchScreen.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = 97C146FF1CF9000F007C117D /* LaunchScreen.storyboard */; };
 		B536A8A1BABD0D98ECC69C62 /* Pods_Runner.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = BA1110CB1A5EE6F171D7F51C /* Pods_Runner.framework */; };
-		F8B0619A2EAC6459002EEA06 /* GoogleService-Info.plist in Resources */ = {isa = PBXBuildFile; fileRef = F8B061992EAC6459002EEA06 /* GoogleService-Info.plist */; };
-		F8B0619B2EAC6459002EEA06 /* GoogleService-Info.plist in Resources */ = {isa = PBXBuildFile; fileRef = F8B061992EAC6459002EEA06 /* GoogleService-Info.plist */; };
+		F8C108CD2EBAAE0F00ADB06B /* GoogleService-Info.plist in Resources */ = {isa = PBXBuildFile; fileRef = F8C108CC2EBAAE0F00ADB06B /* GoogleService-Info.plist */; };
+		F8C108CE2EBAAE0F00ADB06B /* GoogleService-Info.plist in Resources */ = {isa = PBXBuildFile; fileRef = F8C108CC2EBAAE0F00ADB06B /* GoogleService-Info.plist */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -67,7 +67,7 @@
 		E177CFE0949578D88AC66183 /* Pods-RunnerTests.profile.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-RunnerTests.profile.xcconfig"; path = "Target Support Files/Pods-RunnerTests/Pods-RunnerTests.profile.xcconfig"; sourceTree = "<group>"; };
 		F3D00C51F0BF0735391F28F4 /* Pods-Runner.release.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-Runner.release.xcconfig"; path = "Target Support Files/Pods-Runner/Pods-Runner.release.xcconfig"; sourceTree = "<group>"; };
 		F64958CA29FCEB9689AECD86 /* Pods-RunnerTests.debug.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-RunnerTests.debug.xcconfig"; path = "Target Support Files/Pods-RunnerTests/Pods-RunnerTests.debug.xcconfig"; sourceTree = "<group>"; };
-		F8B061992EAC6459002EEA06 /* GoogleService-Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = "GoogleService-Info.plist"; sourceTree = "<group>"; };
+		F8C108CC2EBAAE0F00ADB06B /* GoogleService-Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = "GoogleService-Info.plist"; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -127,7 +127,7 @@
 				331C8082294A63A400263BE5 /* RunnerTests */,
 				99A7E2DF8B9425C107C6B9E2 /* Pods */,
 				9494FBACE237AEE3D26729F8 /* Frameworks */,
-				F8B061992EAC6459002EEA06 /* GoogleService-Info.plist */,
+				F8C108CC2EBAAE0F00ADB06B /* GoogleService-Info.plist */,
 			);
 			sourceTree = "<group>";
 		};
@@ -256,7 +256,7 @@
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				F8B0619A2EAC6459002EEA06 /* GoogleService-Info.plist in Resources */,
+				F8C108CD2EBAAE0F00ADB06B /* GoogleService-Info.plist in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -266,7 +266,7 @@
 			files = (
 				97C147011CF9000F007C117D /* LaunchScreen.storyboard in Resources */,
 				3B3967161E833CAA004F5970 /* AppFrameworkInfo.plist in Resources */,
-				F8B0619B2EAC6459002EEA06 /* GoogleService-Info.plist in Resources */,
+				F8C108CE2EBAAE0F00ADB06B /* GoogleService-Info.plist in Resources */,
 				97C146FE1CF9000F007C117D /* Assets.xcassets in Resources */,
 				97C146FC1CF9000F007C117D /* Main.storyboard in Resources */,
 			);
@@ -483,7 +483,7 @@
 				"DEVELOPMENT_TEAM[sdk=iphoneos*]" = 43P684TW53;
 				ENABLE_BITCODE = NO;
 				INFOPLIST_FILE = Runner/Info.plist;
-				INFOPLIST_KEY_CFBundleDisplayName = Danfels;
+				INFOPLIST_KEY_CFBundleDisplayName = Danfel;
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.shopping";
 				IPHONEOS_DEPLOYMENT_TARGET = 16.6;
 				LD_RUNPATH_SEARCH_PATHS = (
@@ -491,10 +491,10 @@
 					"@executable_path/Frameworks",
 				);
 				MARKETING_VERSION = 1.2;
-				PRODUCT_BUNDLE_IDENTIFIER = com.stevesheridanios.danfels;
+				PRODUCT_BUNDLE_IDENTIFIER = com.stevesheridanios.danfels2;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				PROVISIONING_PROFILE_SPECIFIER = "";
-				"PROVISIONING_PROFILE_SPECIFIER[sdk=iphoneos*]" = "Danfels App Store";
+				"PROVISIONING_PROFILE_SPECIFIER[sdk=iphoneos*]" = "Danfel Distrib";
 				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
 				SUPPORTS_MACCATALYST = NO;
 				SUPPORTS_MAC_DESIGNED_FOR_IPHONE_IPAD = NO;
@@ -681,7 +681,7 @@
 				"DEVELOPMENT_TEAM[sdk=iphoneos*]" = 43P684TW53;
 				ENABLE_BITCODE = NO;
 				INFOPLIST_FILE = Runner/Info.plist;
-				INFOPLIST_KEY_CFBundleDisplayName = Danfels;
+				INFOPLIST_KEY_CFBundleDisplayName = Danfel;
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.shopping";
 				IPHONEOS_DEPLOYMENT_TARGET = 16.6;
 				LD_RUNPATH_SEARCH_PATHS = (
@@ -689,10 +689,10 @@
 					"@executable_path/Frameworks",
 				);
 				MARKETING_VERSION = 1.2;
-				PRODUCT_BUNDLE_IDENTIFIER = com.stevesheridanios.danfels;
+				PRODUCT_BUNDLE_IDENTIFIER = com.stevesheridanios.danfels2;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				PROVISIONING_PROFILE_SPECIFIER = "";
-				"PROVISIONING_PROFILE_SPECIFIER[sdk=iphoneos*]" = "Danfels App Store";
+				"PROVISIONING_PROFILE_SPECIFIER[sdk=iphoneos*]" = "Danfel Distrib";
 				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
 				SUPPORTS_MACCATALYST = NO;
 				SUPPORTS_MAC_DESIGNED_FOR_IPHONE_IPAD = NO;
@@ -719,7 +719,7 @@
 				"DEVELOPMENT_TEAM[sdk=iphoneos*]" = 43P684TW53;
 				ENABLE_BITCODE = NO;
 				INFOPLIST_FILE = Runner/Info.plist;
-				INFOPLIST_KEY_CFBundleDisplayName = Danfels;
+				INFOPLIST_KEY_CFBundleDisplayName = Danfel;
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.shopping";
 				IPHONEOS_DEPLOYMENT_TARGET = 16.6;
 				LD_RUNPATH_SEARCH_PATHS = (
@@ -727,10 +727,10 @@
 					"@executable_path/Frameworks",
 				);
 				MARKETING_VERSION = 1.2;
-				PRODUCT_BUNDLE_IDENTIFIER = com.stevesheridanios.danfels;
+				PRODUCT_BUNDLE_IDENTIFIER = com.stevesheridanios.danfels2;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				PROVISIONING_PROFILE_SPECIFIER = "";
-				"PROVISIONING_PROFILE_SPECIFIER[sdk=iphoneos*]" = "Danfels App Store";
+				"PROVISIONING_PROFILE_SPECIFIER[sdk=iphoneos*]" = "Danfel Distrib";
 				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
 				SUPPORTS_MACCATALYST = NO;
 				SUPPORTS_MAC_DESIGNED_FOR_IPHONE_IPAD = NO;
